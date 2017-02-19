@@ -516,6 +516,14 @@ class MySQLDB {
         return $result;
     }
 
+    function getStudentByID($stu_id) {
+        $query = "SELECT * FROM " . TBL_PEOPLE . " WHERE PersonID = '$stu_id' ";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
     function getTermInfo($fam_id) {
         $query = "SELECT terms.TermID, terms.Term, terms.Year FROM " . TBL_PEOPLE . " 
                     INNER JOIN " . TBL_ATTENDANCE . " ON people.PersonID = attendance.StudentID AND people.familyID = $fam_id
@@ -545,7 +553,7 @@ class MySQLDB {
     }
 
     function getClassDetail($class_id) {
-        $query = "SELECT * FROM " . TBL_CLASS . " WHERE ClassID = '$class_id' ";
+        $query = "SELECT * FROM " . TBL_CLASS . " WHERE ClassID = '$class_id'";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();
@@ -576,6 +584,14 @@ class MySQLDB {
         return $result;
     }
 
+    function getStudioDetail($studio_id){
+        $query = "SELECT * FROM " . TBL_STUDIO . " WHERE StudioID = '$studio_id' ";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
     function getAllFamily() {
         $query = "SELECT * FROM " . TBL_FAMILY;
         $stmt = $this->connection->prepare($query);
@@ -586,6 +602,14 @@ class MySQLDB {
 
     function getAllTerms() {
         $query = "SELECT * FROM " . TBL_TERMS ." ORDER BY Year DESC, Term DESC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getTimeByTimeID($time_id) {
+        $query = "SELECT * FROM " .TBL_TIMES. " WHERE TimeID = '$time_id'";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();
@@ -618,6 +642,22 @@ class MySQLDB {
 
     function getTermByTermID($term_id) {
         $query = "SELECT * FROM " . TBL_TERMS . " WHERE TermID='$term_id'";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getClassByTermID($term_id) {
+        $query = "SELECT * FROM " . TBL_ATTENDANCE . " WHERE TermID='$term_id' ORDER BY ClassID ASC, TimeID ASC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getClassByTermIDGroup($term_id) {
+        $query = "SELECT * FROM " . TBL_ATTENDANCE . " WHERE TermID='$term_id' GROUP BY ClassID ORDER BY ClassID ASC, TimeID ASC";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();

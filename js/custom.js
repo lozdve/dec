@@ -113,7 +113,11 @@ jQuery(document).ready(function($){
 
 	$('.debtors_report').click(function () {
 		var f = $('#debtors').val();
-		window.open('debtors_pdf.php');
+		window.open('debtors_pdf.php?&to='+f);
+	});
+
+	$('.attendance_sheets').click(function () {
+		var f = $('select[name=attend-sheet]').val();
 	});
 
 	// expand/collapse boxes

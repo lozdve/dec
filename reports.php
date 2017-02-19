@@ -62,6 +62,20 @@ if(!$session->logged_in){
                                         </span>
                                         <hr>
                                     </div>
+                                    <div class="attendance-sheets">
+                                        <span class="field"><select name="attend-sheet" id="attend-sheet" class="input-large uniformselect">
+                                            <?php  
+                                                $allterm = $database->getAllTerms();
+                                                for($i=0; $i<sizeof($allterm); $i++) {
+                                                    echo "<option value=\"".$allterm[$i]['TermID']."\">".$allterm[$i]['Year'].' Term '.$allterm[$i]['Term'] ."</option>";
+                                                }
+                                            ?>
+                                        </select></span> 
+                                        <span class="subreport-right">
+                                        <button type="button" class="btn btn-default attendance_sheets">Attendance Sheets</button>
+                                        </span>
+                                        <hr>
+                                    </div>
                                     <div class="journal-detail">
                                         From: <input type="date" name="from_j_detail" id="from_j_de" class="input-small">
                                         To: <input type="date" name="to_j_detail" id="to_j_de" class="input-small">
