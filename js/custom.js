@@ -118,6 +118,7 @@ jQuery(document).ready(function($){
 
 	$('.attendance_sheets').click(function () {
 		var f = $('select[name=attend-sheet]').val();
+		window.open('attendance_sheets_pdf.php?&termid='+f);
 	});
 
 	// expand/collapse boxes
