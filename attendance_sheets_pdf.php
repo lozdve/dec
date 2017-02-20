@@ -176,21 +176,6 @@ class PDF extends FPDF
 	$pdf->sheetCatalog();
 	$pdf->drawSheetHeader();
 	$pdf->drawEachStudent($attendinfo);
-	// $pdf->AddPage();
-	// $pdf->SetFont('Arial','',16);
-	// $pdf->Write(5,"fsdjalfjlsafjksdlfal");
-	// $pdf->SetFont('Arial','U',16);
-	// $link = $pdf->AddLink();
-	// $link2 = $pdf->AddLink();
-
-	// $pdf->Write(5,' dsaffdsafds', $link);
-	// $pdf->Write(5,' sadffasd', $link2);
-	// $pdf->SetFont('');
-	// var_dump($link);
-	// $pdf->AddPage();
-	// $pdf->SetLink($link);
-	// $pdf->AddPage();
-	// $pdf->SetLink($link2);
 	$pdf->Output();
 
 
