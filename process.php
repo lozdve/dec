@@ -32,6 +32,33 @@ class Process {
         else if (isset($_POST['new-payment'])) {
             $this->addNewPayment();
         }
+        else if (isset($_POST['invterm'])) {
+            $this->addNewTermInv();
+        }
+        else if (isset($_POST['fam_code'])) {
+            $this->checkCode($_POST['fam_code']);
+        }
+        else if (isset($_POST['new_journal'])) {
+            $this->addNewJournal();
+        }
+        else if (isset($_POST['acc_code'])) {
+            $this->updateGL($_POST['acc_code'], $_POST['acc_print']);
+        }
+        else if (isset($_POST['curr_term'])) {
+            $this->update_default_term($_POST['curr_term']);
+        }
+        else if (isset($_POST['saved_invno'])) {
+            $this->updateInvidx($_POST['saved_invno']);
+        }
+        else if (isset($_POST['get_update_inv'])) {
+            $this->getInvDate($_POST['invno']);
+        }
+        else if (isset($_POST['update_inv'])) {
+            $this->updateInvDate($_POST['invno'], $_POST['date']);
+        }
+        else if (isset($_POST['del_banking'])) {
+            $this->delAllBanking();
+        }
         /**
          * The only other reason user should be directed here
          * is if he wants to logout, which means user is
@@ -286,7 +313,7 @@ class Process {
     }
 
     function addNewPayment() {
-        global $session, $database;
+        global $session, $database, $form;
         $result = $database->addNewPaymentToInv($_POST['report-date'], $_POST['report-ref'], $_POST['report-amount'], $_POST['select-fam'], $_POST['report-method'], $_POST['report-term']);
         $result1 = $database->addNewPaymentToBank($_POST['report-date'], $_POST['report-ref'], $_POST['report-bank'], $_POST['report-branch'], $_POST['report-amount'], $_POST['report-method'], $_POST['select-fam']);
 
@@ -297,6 +324,91 @@ class Process {
             $_SESSION['error_array'] = $form->getErrorArray();
             header("Location: " . $session->referrer);
         }
+    }
+
+    function addNewJournal() {
+        global $database, $form;
+        $result = $database->addNewJournal($_POST['report-term'], $_POST['select-fam'], $_POST['report-date'], $_POST['report-desc'], $_POST['report-amount'], $_POST['report-acct']);
+        if ($result) {
+            header("Location: /dec/receive_journal");
+        } else {
+            $_SESSION['value_array'] = $_POST;
+            $_SESSION['error_array'] = $form->getErrorArray();
+            header("Location: " . $session->referrer);
+        }
+    }
+
+    function addNewTermInv() {
+        global $session, $database, $form;
+        $result = $database->addNewTermInvidx($_POST['saved_term'], $_POST['saved_date'],$_POST['saved_type']);
+        $result1 = $database->addNewTermInvtrans($_POST['saved_term'], $_POST['saved_date'],$_POST['saved_type']);
+        if ($result || $result1) {
+            header("Location: /dec/saved_invoices");
+        } else {
+            $_SESSION['value_array'] = $_POST;
+            $_SESSION['error_array'] = $form->getErrorArray();
+            header("Location: " . $session->referrer);
+        }
+    }
+
+    function checkCode($famcode) {
+        global $session, $database;
+        $result = $database->checkCode($famcode);
+        // var_dump($result);
+
+        echo json_encode($result);
+    }
+
+    function updateGL($acc_code, $acc_print) {
+        global $database, $form;
+        $result = $database->updateGL($acc_code, $acc_print);
+        if(!$result) {
+            $_SESSION['value_array'] = $_POST;
+            $_SESSION['error_array'] = $form->getErrorArray();
+            header("Location: " . $session->referrer);
+        }
+    }
+
+    function update_default_term($val) {
+        global $database, $form;
+        $result = $database->update_default_term($val);
+        if(!$result) {
+            $_SESSION['value_array'] = $_POST;
+            $_SESSION['error_array'] = $form->getErrorArray();
+            header("Location: " . $session->referrer);
+        }
+    }
+
+    function updateInvidx($invno) {
+        global $database, $form;
+        $result = $database->updateInvidx($invno);
+        if(!$result) {
+            $_SESSION['value_array'] = $_POST;
+            $_SESSION['error_array'] = $form->getErrorArray();
+            header("Location: " . $session->referrer);
+        }
+    }
+
+    function getInvDate($invno) {
+        global $database, $form;
+        $result = $database->getInvidxByInvNo($invno);
+        if(!$result) {
+            return false;
+        }
+        else
+            echo json_encode($result);
+    }
+
+    function updateInvDate($invno, $date) {
+        global $database, $form;
+        $result = $database->updateInvDate($invno, $date);
+        return $result;
+    }
+
+    function delAllBanking() {
+        global $database, $form;
+        $result = $database->delAllBanking();
+        return $result;
     }
 }
 ;

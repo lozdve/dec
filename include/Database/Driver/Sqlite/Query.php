@@ -29,7 +29,7 @@ class DriverSqliteQuery extends Query {
 	private $_stmt;
 
 
-	protected $_identifier_limiter = '';
+	protected $_identifier_limiter = null;
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	 * Public methods
@@ -75,8 +75,8 @@ class DriverSqliteQuery extends Query {
 
 	protected function _prepare( $sql )
 	{
-		// Prep a PDO statement
-		$this->_stmt = $this->_dbcon->prepare( $sql );
+		$resource = $this->database()->resource();
+		$this->_stmt = $resource->prepare( $sql );
 
 		// bind values
 		for ( $i=0 ; $i<count($this->_bindings) ; $i++ ) {
@@ -89,7 +89,7 @@ class DriverSqliteQuery extends Query {
 			);
 		}
 
-		//file_put_contents( '/tmp/editor_sql', $sql."\n", FILE_APPEND );
+		$this->database()->debugInfo( $sql, $this->_bindings );
 	}
 
 
@@ -104,7 +104,8 @@ class DriverSqliteQuery extends Query {
 			return false;
 		}
 
-		return new DriverSqliteResult( $this->_dbcon, $this->_stmt );
+		$resource = $this->database()->resource();
+		return new DriverSqliteResult( $resource, $this->_stmt );
 	}
 }
 

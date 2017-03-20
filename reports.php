@@ -65,7 +65,7 @@ if(!$session->logged_in){
                                     <div class="attendance-sheets">
                                         <span class="field"><select name="attend-sheet" id="attend-sheet" class="input-large uniformselect">
                                             <?php  
-                                                $allterm = $database->getAllTerms();
+                                                $allterm = $database->getSheetsClassTerm();
                                                 for($i=0; $i<sizeof($allterm); $i++) {
                                                     echo "<option value=\"".$allterm[$i]['TermID']."\">".$allterm[$i]['Year'].' Term '.$allterm[$i]['Term'] ."</option>";
                                                 }

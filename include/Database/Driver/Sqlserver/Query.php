@@ -27,7 +27,7 @@ class DriverSqlserverQuery extends Query {
 	private $_stmt;
 
 
-	protected $_identifier_limiter = '';
+	protected $_identifier_limiter = array( '[', ']' );
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	 * Public methods
@@ -79,8 +79,8 @@ class DriverSqlserverQuery extends Query {
 
 	protected function _prepare( $sql )
 	{
-		// Prep a PDO statement
-		$this->_stmt = $this->_dbcon->prepare( $sql );
+		$resource = $this->database()->resource();
+		$this->_stmt = $resource->prepare( $sql );
 
 		// bind values
 		for ( $i=0 ; $i<count($this->_bindings) ; $i++ ) {
@@ -93,7 +93,7 @@ class DriverSqlserverQuery extends Query {
 			);
 		}
 
-		//file_put_contents( '/tmp/editor_sql', $sql."\n", FILE_APPEND );
+		$this->database()->debugInfo( $sql, $this->_bindings );
 	}
 
 
@@ -108,7 +108,8 @@ class DriverSqlserverQuery extends Query {
 			return false;
 		}
 
-		return new DriverSqlserverResult( $this->_dbcon, $this->_stmt );
+		$resource = $this->database()->resource();
+		return new DriverSqlserverResult( $resource, $this->_stmt );
 	}
 
 

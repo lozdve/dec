@@ -24,10 +24,11 @@ class DriverOracleResult extends Result {
 	 * Constructor
 	 */
 
-	function __construct( $dbh, $stmt )
+	function __construct( $dbh, $stmt, $pkey_val )
 	{
 		$this->_dbh = $dbh;
 		$this->_stmt = $stmt;
+		$this->_pkey_val = $pkey_val;
 	}
 
 
@@ -36,8 +37,10 @@ class DriverOracleResult extends Result {
 	 * Private properties
 	 */
 
-	private $_stmt;
-	private $_dbh;
+	private $_stmt; // Result from oci_parse
+	private $_dbh; // Result from oci_connect
+	private $_rows = null;
+	private $_pkey_val;
 
 
 
@@ -53,19 +56,27 @@ class DriverOracleResult extends Result {
 
 	public function fetch ()
 	{
-		return $this->_stmt->fetch( \PDO::FETCH_ASSOC );
+		return oci_fetch_assoc( $this->_stmt );
 	}
 
 
 	public function fetchAll ()
 	{
-		return $this->_stmt->fetchAll( \PDO::FETCH_ASSOC );
+		if ( ! $this->_rows ) {
+			$out = array();
+		
+			oci_fetch_all( $this->_stmt, $out, 0, -1, OCI_FETCHSTATEMENT_BY_ROW + OCI_ASSOC );
+
+			$this->_rows = $out;
+		}
+
+		return $this->_rows;
 	}
 
 
 	public function insertId ()
 	{
-		return $this->_dbh->lastInsertId();
+		return $this->_pkey_val;
 	}
 }
 

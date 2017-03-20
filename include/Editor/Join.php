@@ -443,8 +443,18 @@ class Join extends DataTables\Ext {
 		$dteTableLocal = $this->_aliasParentTable ? // Can be aliased to allow a self join
 			$this->_aliasParentTable :
 			$dteTable;
+		$joinField = isset($this->_join['table']) ?
+			$this->_join['parent'][0] :
+			$this->_join['parent'];
 
-		$joinField = isset($this->_join['table']) ? $this->_join['parent'][0] : $this->_join['parent'];
+		// This is something that will likely come in a future version, but it
+		// is a relatively low use feature. Please get in touch if this is
+		// something you require.
+		if ( count( $pkey ) > 1 ) {
+			throw new \Exception("MJoin is not currently supported with a compound primary key for the main table", 1);
+		}
+
+		$pkey = $pkey[0];
 		$pkeyIsJoin = $pkey === $joinField || $pkey === $dteTable.'.'.$joinField;
 
 		// Sanity check that table selector fields are read only, and have an name without
@@ -475,6 +485,7 @@ class Join extends DataTables\Ext {
 		// Set up the JOIN query
 		$stmt = $db
 			->query( 'select' )
+			->distinct( true )
 			->get( $dteTableLocal.'.'.$joinField.' as dteditor_pkey' )
 			->get( $this->_fields('get') )
 			->table( $dteTable .' as '. $dteTableLocal );
@@ -534,39 +545,49 @@ class Join extends DataTables\Ext {
 			}
 		}
 
-		// Check that the joining field is available
-		// The joining key can come from the Editor instance's primary key, or
-		// any other field. If the instance's pkey, then we've got that in the DT_RowId
-		// parameter, so we can use that. Otherwise, the key must be in the field list.
-		if ( !$pkeyIsJoin && count($data) > 0 && !isset($data[0][ $joinField ]) ) {
-			echo json_encode( array(
-				"sError" => "Join was performed on the field '{$joinField}' which was not "
-					."included in the Editor field list. The join field must be included "
-					."as a regular field in the Editor instance."
-			) );
-			exit(0);
+		if ( count($data) > 0 ) {
+			// Check that the joining field is available.  The joining key can
+			// come from the Editor instance's primary key, or any other field,
+			// including a nested value (from a left join). If the instance's 
+			// pkey, then we've got that in the DT_RowId parameter, so we can
+			// use that. Otherwise, the key must be in the field list.
+			if ( $this->_propExists( $dteTable.'.'.$joinField, $data[0] ) ) {
+				$readField = $dteTable.'.'.$joinField;
+			}
+			else if ( $this->_propExists( $joinField, $data[0] ) ) {
+				$readField = $joinField;
+			}
+			else if ( ! $pkeyIsJoin ) {
+				echo json_encode( array(
+					"sError" => "Join was performed on the field '{$joinField}' which was not "
+						."included in the Editor field list. The join field must be included "
+						."as a regular field in the Editor instance."
+				) );
+				exit(0);
+			}
+
+			// Loop over the data and do a join based on the data available
+			for ( $i=0 ; $i<count($data) ; $i++ ) {
+				$rowPKey = $pkeyIsJoin ? 
+					str_replace( $idPrefix, '', $data[$i]['DT_RowId'] ) :
+					$this->_readProp( $readField, $data[$i] );
+
+				if ( isset( $join[$rowPKey] ) ) {
+					$data[$i][ $this->_name ] = $join[$rowPKey];
+				}
+				else {
+					$data[$i][ $this->_name ] = ($this->_type === 'object') ?
+						(object)array() : array();
+				}
+			}
 		}
 
-		// Loop over the data and do a join based on the data available
-		for ( $i=0 ; $i<count($data) ; $i++ ) {
-			$rowPKey = $pkeyIsJoin ? 
-				str_replace( $idPrefix, '', $data[$i]['DT_RowId'] ) :
-				$data[$i][ $joinField ];
-
-			if ( isset( $join[$rowPKey] ) ) {
-				$data[$i][ $this->_name ] = $join[$rowPKey];
-			}
-			else {
-				$data[$i][ $this->_name ] = ($this->_type === 'object') ?
-					(object)array() : array();
-			}
-		}
-
+		// Field options
 		foreach ($this->_fields as $field) {
 			$opts = $field->optionsExec( $db );
 
 			if ( $opts !== false ) {
-				$name = $this->_table.
+				$name = $this->name().
 					($this->_type === 'object' ? '.' : '[].').
 					$field->name();
 				$options[ $name ] = $opts;
@@ -652,6 +673,7 @@ class Join extends DataTables\Ext {
 			return;
 		}
 
+		$that = $this;
 		$this->_prep( $editor );
 		$db = $editor->db();
 		
@@ -666,9 +688,9 @@ class Join extends DataTables\Ext {
 			$stmt = $db
 				->query( 'delete' )
 				->table( $this->_table )
-				->where_group( true )
-				->or_where( $this->_join['child'], $ids )
-				->where_group( false );
+				->where_group( function ( $q ) use ( $that ) {
+					$q->or_where( $that->_join['child'], $ids );
+				} );
 
 			$this->_apply_where( $stmt );
 

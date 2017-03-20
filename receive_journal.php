@@ -38,13 +38,13 @@ if(!$session->logged_in){
         
         <ul class="breadcrumbs">
             <li><a href="main"><i class="iconfa-home"></i></a> <span class="separator"></span></li>
-            <li>Receive Payment</li>
+            <li>New Journal</li>
         </ul>
         
         <div class="pageheader">
             <div class="pageicon"><i class="fa fa-laptop" aria-hidden="true"></i></div>
             <div class="pagetitle">
-                <h1>Receive Payment</h1>
+                <h1>New Journal</h1>
             </div>
         </div><!--pageheader-->
         
@@ -53,7 +53,7 @@ if(!$session->logged_in){
                 <div class="row-fluid">
                     <div id="dashboard-left" class="span12">
                         <div class="widget">
-                            <h4 class="widgettitle">Receive Payment</h4>
+                            <h4 class="widgettitle">New Journal</h4>
                             <div class="widgetcontent">
                                 <form class="stdform" action="process" method="post" enctype="multipart/form-data">
                                     <p>
@@ -62,7 +62,7 @@ if(!$session->logged_in){
                                             <?php  
                                                 $allterm = $database->getAllTerms();
                                                 for($i=0; $i<sizeof($allterm); $i++) {
-                                                    echo "<option value=\"".$allterm[$i]['TermID']."\"" .(($allterm[$i]['TermID']==$curr_term)?'selected=true':''). ">" .$allterm[$i]['Year']. ' Term '.$allterm[$i]['Term'] ."</option>";
+                                                    echo "<option value=\"".$allterm[$i]['TermID']."\"" .(($allterm[$i]['TermID']==$curr_term)?'selected=true':''). ">".$allterm[$i]['Year'].' Term '.$allterm[$i]['Term'] ."</option>";
                                                 }
                                             ?>
                                         </select></span> 
@@ -87,8 +87,8 @@ if(!$session->logged_in){
                                     </p>
 
                                     <p>
-                                        <label>Reference</label>
-                                        <span class="field"><input type="text" name="report-ref"></span>
+                                        <label>Description</label>
+                                        <span class="field"><input type="text" name="report-desc"></span>
                                     </p>
 
                                     <p>
@@ -97,27 +97,19 @@ if(!$session->logged_in){
                                     </p>
 
                                     <p>
-                                        <label>Method</label>
-                                        <span class="field"><select name="report-method" class="input-large">
-                                            <option value="1">Cash</option>
-                                            <option value="2">Cheque</option>
-                                            <option value="3">Credit Card</option>
-                                            <option value="4">Direct Credit</option>
+                                        <label>Accounting</label>
+                                        <span class="field"><select name="report-acct" class="input-large">
+                                            <?php 
+                                                $gl = $database->getAllGL();
+                                                for($i=0;$i<sizeof($gl);$i++) {
+                                                    echo "<option value=\"".$gl[$i]['GL']."\">".$gl[$i]['Description']."</option>";
+                                                }
+                                            ?>
                                         </select></span>
                                     </p>
 
-                                    <p>
-                                        <label>Bank</label>
-                                        <span class="field"><input type="text" name="report-bank"></span>
-                                    </p>
-
-                                    <p>
-                                        <label>Branch</label>
-                                        <span class="field"><input type="text" name="report-branch"></span>
-                                    </p>
-
                                     <p class="stdformbutton">
-                                        <input type="hidden" name="new-payment" value="1">
+                                        <input type="hidden" name="new_journal" value="1">
                                         <button class="btn btn-primary">Process</button>
                                     </p>
                                 </form>

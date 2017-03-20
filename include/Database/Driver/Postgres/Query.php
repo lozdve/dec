@@ -28,7 +28,7 @@ class DriverPostgresQuery extends Query {
 	 */
 	private $_stmt;
 
-	protected $_identifier_limiter = '';
+	protected $_identifier_limiter = null;
 
 	protected $_field_quote = '"';
 
@@ -82,13 +82,15 @@ class DriverPostgresQuery extends Query {
 
 	protected function _prepare( $sql )
 	{
+		$resource = $this->database()->resource();
+		
 		// Add a RETURNING command to postgres insert queries so we can get the
 		// pkey value from the query reliably
 		if ( $this->_type === 'insert' ) {
 			$table = explode( ' as ', $this->_table[0] );
 
 			// Get the pkey field name
-			$pkRes = $this->_dbcon->prepare( 
+			$pkRes = $resource->prepare( 
 				"SELECT
 					pg_attribute.attname, 
 					format_type(pg_attribute.atttypid, pg_attribute.atttypmod) 
@@ -106,8 +108,7 @@ class DriverPostgresQuery extends Query {
 			$sql .= ' RETURNING '.$row['attname'].' as dt_pkey';
 		}
 
-		// Prep a PDO statement
-		$this->_stmt = $this->_dbcon->prepare( $sql );
+		$this->_stmt = $resource->prepare( $sql );
 
 		// bind values
 		for ( $i=0 ; $i<count($this->_bindings) ; $i++ ) {
@@ -120,7 +121,7 @@ class DriverPostgresQuery extends Query {
 			);
 		}
 
-		//file_put_contents( '/tmp/editor_sql', $sql."\n", FILE_APPEND );
+		$this->database()->debugInfo( $sql, $this->_bindings );
 	}
 
 
@@ -135,7 +136,8 @@ class DriverPostgresQuery extends Query {
 			return false;
 		}
 
-		return new DriverPostgresResult( $this->_dbcon, $this->_stmt );
+		$resource = $this->database()->resource();
+		return new DriverPostgresResult( $resource, $this->_stmt );
 	}
 }
 

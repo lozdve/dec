@@ -183,5 +183,39 @@ class Format {
 			$opts :
 			$val;
 	}
+
+
+	/**
+	 * Convert a number from using any character other than a period (dot) to
+	 * one which does use a period. This is useful for allowing numeric user
+	 * input in regions where a comma is used as the decimal character. Use with
+	 * a set formatter.
+	 *   @param string $val Value to convert to from a string to an array
+	 *   @param string[] $data Data for the whole row / submitted data
+	 *   @param string $opts Decimal place character (default ',')
+	 *   @return string Formatted value or null on error.
+	 */
+	public static function fromDecimalChar ( $val, $data, $opts ) {
+		if ( $opts === null ) {
+			$opts = ',';
+		}
+		return str_replace( $opts, '.', $val );
+	}
+
+
+	/**
+	 * Convert a number with a period (dot) as the decimal character to use
+	 * a different character (typically a comma). Use with a get formatter.
+	 *   @param string $val Value to convert to from a string to an array
+	 *   @param string[] $data Data for the whole row / submitted data
+	 *   @param string $opts Decimal place character (default ',')
+	 *   @return string Formatted value or null on error.
+	 */
+	public static function toDecimalChar ( $val, $data, $opts ) {
+		if ( $opts === null ) {
+			$opts = ',';
+		}
+		return str_replace( '.', $opts, $val );
+	}
 }
 

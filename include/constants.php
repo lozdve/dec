@@ -30,7 +30,10 @@ define("TBL_CLASS_CAT", "classcat");
 define("TBL_STUDIO", "studio");
 define("TBL_TIMES", "times");
 define("TBL_INVIDX", "invidx");
+define("TBL_INVTRANS", "invtrans");
 define("TBL_BANKING", "banking");
+define("TBL_GL", "gl");
+define("TBL_FLAGS", "flags");
 define("TBL_USER_SESSION", "user_session");
 
 /**

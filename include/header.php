@@ -20,10 +20,13 @@
 <link rel="stylesheet" href="css/selectize.css" type="text/css" />
 <link rel="stylesheet" href="css/selectize.default.css" type="text/css" />
 <link rel="stylesheet" href="css/bootstrap-timepicker.min.css" type="text/css" />
+<link rel="stylesheet" href="css/jquery-ui.min.css" type="text/css" />
+
+
 
 <script src="https://code.jquery.com/jquery-3.1.0.min.js" integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s=" crossorigin="anonymous"></script>
 
-
+<script type="text/javascript" src="js/jquery-ui.min.js"></script>
 <script src="https://code.jquery.com/jquery-migrate-1.4.1.min.js" integrity="sha256-SOuLUArmo4YXtXONKz+uxIGSKneCJG4x0nVcA0pFzV0=" crossorigin="anonymous"></script>
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
 <script type="text/javascript" src="js/bootstrap-fileupload.min.js"></script>

@@ -60,7 +60,7 @@ class Database {
 		}
 
 		$this->query_driver = "DataTables\\Database\\Driver".$opts['type'].'Query';
-		$this->_db = isset( $opts['pdo'] ) ?
+		$this->_dbResource = isset( $opts['pdo'] ) ?
 			$opts['pdo'] :
 			call_user_func($this->query_driver.'::connect', $opts );
 	}
@@ -72,13 +72,40 @@ class Database {
 	 */
 
 	/** @var resource */
-	private $_db = null;
+	private $_dbResource = null;
+
+	/** @var boolean */
+	private $_debug = false;
+
+	/** @var array */
+	private $_debugInfo = array();
 
 
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	 * Public methods
 	 */
+
+	/**
+	 * Determine if there is any data in the table that matches the query
+	 * condition
+	 *
+	 * @param string|string[] $table Table name(s) to act upon.
+	 * @param array $where Where condition for what to select - see {@link
+	 *   Query::where}.
+	 * @return [boolean] Boolean flag - true if there were rows
+	 */
+	public function any( $table, $where=null )
+	{
+		$res = $this->query( 'select' )
+			->table( $table )
+			->get( '*' )
+			->where( $where )
+			->exec();
+
+		return $res->count() > 0;
+	}
+
 
 	/**
 	 * Commit a database transaction.
@@ -88,7 +115,54 @@ class Database {
 	 */
 	public function commit ()
 	{
-		call_user_func($this->query_driver.'::commit', $this->_db );
+		call_user_func($this->query_driver.'::commit', $this->_dbResource );
+		return $this;
+	}
+
+
+	/**
+	 * Get / set debug mode.
+	 * 
+	 *  @param boolean $_ Debug mode state. If not given, then used as a getter.
+	 *  @return boolean|self Debug mode state if no parameter is given, or
+	 *    self if used as a setter.
+	 */
+	public function debug ( $set=null )
+	{
+		if ( $set === null ) {
+			return $this->_debug;
+		}
+
+		$this->_debug = $set;
+
+		return $this;
+	}
+
+
+	/**
+	 * Get debug query information. Please note that the setter version of this
+	 * method is for _internal use only_.
+	 *
+	 *  @return array Information about the queries used. When this method is
+	 *    called it will reset the query cache.
+	 */
+	public function debugInfo ( $query=null, $bindings=null )
+	{
+		if ( $query === null ) {
+			// Clear
+			$debugInfo = $this->_debugInfo;
+			$this->_debugInfo = array();
+
+			return $debugInfo;
+		}
+
+		if ( $this->_debug ) {
+			$this->_debugInfo[] = array(
+				"query"    => $query,
+				"bindings" => $bindings
+			);
+		}
+
 		return $this;
 	}
 
@@ -120,11 +194,16 @@ class Database {
 	 *  @param string|string[] $table Table name(s) to act upon.
 	 *  @param array $set Field names and values to set - see {@link
 	 *    Query::set}.
+	 *  @param  array $pkey Primary key column names (this is an array for
+	 *    forwards compt, although only the first item in the array is actually
+	 *    used). This doesn't need to be set, but it must be if you want to use
+	 *    the `Result->insertId()` method.
 	 *  @return Result
 	 */
-	public function insert ( $table, $set )
+	public function insert ( $table, $set, $pkey='' )
 	{
 		return $this->query( 'insert' )
+			->pkey( $pkey )
 			->table( $table )
 			->set( $set )
 			->exec();
@@ -139,9 +218,13 @@ class Database {
 	 *    Query::set}.
 	 *  @param array $where Where condition for what to update - see {@link
 	 *    Query::where}.
+	 *  @param  array $pkey Primary key column names (this is an array for
+	 *    forwards compt, although only the first item in the array is actually
+	 *    used). This doesn't need to be set, but it must be if you want to use
+	 *    the `Result->insertId()` method. Only used if an insert is performed.
 	 *  @return Result
 	 */
-	public function push ( $table, $set, $where=null )
+	public function push ( $table, $set, $where=null, $pkey='' )
 	{
 		// Update or insert
 		if ( $this->select( $table, "*", $where )->count() > 0 ) {
@@ -155,7 +238,7 @@ class Database {
 			}
 		}
 
-		return $this->insert( $table, $set );
+		return $this->insert( $table, $set, $pkey );
 	}
 
 
@@ -167,7 +250,7 @@ class Database {
 	 */
 	public function query ( $type, $table=null )
 	{
-		return new $this->query_driver( $this->_db, $type, $table );
+		return new $this->query_driver( $this, $type, $table );
 	}
 
 
@@ -179,7 +262,7 @@ class Database {
 	 */
 	public function quote ( $val, $type=\PDO::PARAM_STR )
 	{
-		return $this->_db->quote( $val, $type );
+		return $this->_dbResource->quote( $val, $type );
 	}
 
 
@@ -208,6 +291,16 @@ class Database {
 
 
 	/**
+	 * Get the database resource connector. This is typically a PDO object.
+	 * @return resource PDO connection resource (driver dependent)
+	 */
+	public function resource ()
+	{
+		return $this->_dbResource;
+	}
+
+
+	/**
 	 * Rollback the database state to the start of the transaction.
 	 *
 	 * Use with {@link transaction} and {@link commit}.
@@ -215,7 +308,7 @@ class Database {
 	 */
 	public function rollback ()
 	{
-		call_user_func($this->query_driver.'::rollback', $this->_db );
+		call_user_func($this->query_driver.'::rollback', $this->_dbResource );
 		return $this;
 	}
 
@@ -310,7 +403,7 @@ class Database {
 	 */
 	public function transaction ()
 	{
-		call_user_func($this->query_driver.'::transaction', $this->_db );
+		call_user_func($this->query_driver.'::transaction', $this->_dbResource );
 		return $this;
 	}
 

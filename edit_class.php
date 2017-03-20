@@ -4,6 +4,7 @@ global $database;
 $class_id = $_GET['class_id'];
 $class_info = $database->getClassDetail($class_id);
 $config = $database->getConfigs();
+$curr_term = $database->getCurrTerm()[0]['DefTerm'];
 if(!$session->logged_in){
 	header("Location: ".$config['WEB_ROOT'].$config['home_page']);
 } else {	
@@ -160,8 +161,10 @@ if(!$session->logged_in){
                                             <select class="attendselect">
                                                 <?php 
                                                     $cls_term = $database->getTermByClass($class_id);
+                                                    // var_dump($cls_term);
+                                                    // die();
                                                     for($i=0;$i<sizeof($cls_term);$i++) {
-                                                        echo "<option data-term-id=\"".$cls_term[$i][5]."\" data-studio=\"".$cls_term[$i][6]."\" value=\"".$cls_term[$i][4]."\">".$cls_term[$i][0]. " Term " .$cls_term[$i][1]. " on " .$cls_term[$i][2]. " " .$cls_term[$i][3]. "</option>";           
+                                                        echo "<option data-term-id=\"".$cls_term[$i][5]."\" data-studio=\"".$cls_term[$i][6]."\" value=\"".$cls_term[$i][4]."\"" .(($cls_term[$i]['TermID']==$curr_term)?'selected=true':''). ">".$cls_term[$i][0]. " Term " .$cls_term[$i][1]. " on " .$cls_term[$i][2]. " " .$cls_term[$i][3]. "</option>";           
                                                     }
                                                 ?>
                                             </select>

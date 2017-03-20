@@ -28,13 +28,15 @@ class PDF extends FPDF
 		// var_dump($attendinfo);
 		$cls = array();
 		$classes_in_term = $database->getClassByTermIDGroup($termid);
+		// var_dump($classes_in_term);
 		for($i=0;$i<sizeof($classes_in_term);$i++) {
-			array_push($cls,$database->getClassDetail($classes_in_term[$i][20])[0][2]);
+			$tmp = $database->getClassDetail($classes_in_term[$i][20]);
+			if($tmp != null)
+				array_push($cls,$tmp[0][2]);
 		}
+		// var_dump($cls);
 		$cls_link = array();
-		// var_dump($cls);
 		$tmp = null;
-		// var_dump($cls);
 		for($i=0;$i<sizeof($cls);$i++) {
 			${"tmp$i"} = $this->AddLink();
 			$this->Cell(50,7,$cls[$i],0,1,'L',0,${"tmp$i"});
@@ -83,6 +85,7 @@ class PDF extends FPDF
 
 	function drawEachStudent($attendinfo) {
 		global $database;	
+		// var_dump($attendinfo);
 		$timeinfo = $database->getTimeByTimeID($attendinfo[0][2]);
 		$this->SetFont('OpenSans','',16);
 		// $this->Text(130,24,$timeinfo[0][4] .' '.$timeinfo[0][5]);
@@ -97,36 +100,40 @@ class PDF extends FPDF
 		$this->SetY(42);
 		$j = 2;
 		for($i=1;$i<sizeof($attendinfo);$i++) {
+
 			if($attendinfo[$i][2]==$attendinfo[$i-1][2]) {
 				$stu_name = $database->getStudentByID($attendinfo[$i-1][1]);
-				$this->SetFont('OpenSans','',10);
-				$this->SetLineWidth(0.1);
-				$this->SetFillColor(192,171,171);
+				if($stu_name != null) {
+					$this->SetFont('OpenSans','',10);
+					$this->SetLineWidth(0.1);
+					$this->SetFillColor(192,171,171);
 
-				$this->SetX(12);
-				$this->Cell(53,7,$stu_name[0][3].' '.$stu_name[0][5],1,0,'',0);
+					$this->SetX(12);
+					$this->Cell(53,7,$stu_name[0][3].' '.$stu_name[0][5],1,0,'',0);
 
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,0,'C',0);
-				$this->Cell(9,7,'',1,1,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,0,'C',0);
+					$this->Cell(9,7,'',1,1,'C',0);
+				}
 			}
 			else{
 				$stu_name = $database->getStudentByID($attendinfo[$i-1][1]);
+				if($stu_name != null) {
+
 				$this->SetFont('OpenSans','',10);
 				$this->SetLineWidth(0.1);
 				$this->SetFillColor(192,171,171);
-
 				$this->SetX(12);
 				$this->Cell(53,7,$stu_name[0][3].' '.$stu_name[0][5],1,0,'',0);
 
@@ -144,23 +151,30 @@ class PDF extends FPDF
 				$this->Cell(9,7,'',1,0,'C',0);
 				$this->Cell(9,7,'',1,0,'C',0);
 				$this->Cell(9,7,'',1,1,'C',0);
+				}
 
 
 				$this->drawSheetHeader();
 				$timeinfo = $database->getTimeByTimeID($attendinfo[$i][2]);
 				$last_time = $database->getTimeByTimeID($attendinfo[$i-1][2]);
 				$time_format = new DateTime($timeinfo[0][5]);
-				$this->SetFont('OpenSans','',16);
-				$this->SetY(11);
-				$this->Cell(20,7,$database->getStudioDetail($timeinfo[0][1])[0][1],0,'R');
-				$this->SetY(20);
-				$this->Cell(20,7,$database->getClassDetail($timeinfo[0][2])[0][2],0,'R');
-				$this->Cell(145);
-				$this->Cell(20,7,$timeinfo[0][4].'   '.$time_format->format('g:i A'),0,1,'R');
-				$this->SetY(42);
-				if($timeinfo[0][2] != $last_time[0][2]) {
-					$this->SetLink($j);
-					$j++;
+				// var_dump($timeinfo);
+				// var_dump($database->getClassDetail($timeinfo[0][2])[0][2]);
+				$tmp_studio = $database->getStudioDetail($timeinfo[0][1]);
+				$tmp_class = $database->getClassDetail($timeinfo[0][2]);
+				if($tmp_studio !=null && $tmp_class != null) {
+					$this->SetFont('OpenSans','',16);
+					$this->SetY(11);
+					$this->Cell(20,7,$tmp_studio[0][1],0,'R');
+					$this->SetY(20);
+					$this->Cell(20,7,$tmp_class[0][2],0,'R');
+					$this->Cell(145);
+					$this->Cell(20,7,$timeinfo[0][4].'   '.$time_format->format('g:i A'),0,1,'R');
+					$this->SetY(42);
+					if($timeinfo[0][2] != $last_time[0][2]) {
+						$this->SetLink($j);
+						$j++;
+					}
 				}
 				continue;		
 			}

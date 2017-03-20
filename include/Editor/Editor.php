@@ -5,7 +5,7 @@
  * PHP libraries for DataTables and DataTables Editor, utilising PHP 5.3+.
  *
  *  @author    SpryMedia
- *  @version   1.5.6
+ *  @version   1.6.1
  *  @copyright 2012 SpryMedia ( http://sprymedia.co.uk )
  *  @license   http://editor.datatables.net/license DataTables Editor
  *  @link      http://editor.datatables.net
@@ -125,8 +125,8 @@ class Editor extends Ext {
 	 *    </code>
 	 *  @param string|array $table The table name in the database to read and write
 	 *    information from and to. Can be given here or with the 'table' method.
-	 *  @param string $pkey Primary key column name in the table given in the $table
-	 *    parameter. Can be given here or with the 'pkey' method.
+	 *  @param string|array $pkey Primary key column name in the table given in
+	      the $table parameter. Can be given here or with the 'pkey' method.
 	 */
 	function __construct( $db=null, $table=null, $pkey=null )
 	{
@@ -143,7 +143,7 @@ class Editor extends Ext {
 	 */
 
 	/** @var string */
-	public $version = '1.5.6';
+	public $version = '1.6.1';
 
 
 
@@ -169,8 +169,8 @@ class Editor extends Ext {
 	/** @var DataTables\Editor\Join[] */
 	private $_join = array();
 
-	/** @var string */
-	private $_pkey = 'id';
+	/** @var array */
+	private $_pkey = array('id');
 
 	/** @var string[] */
 	private $_table = array();
@@ -192,11 +192,21 @@ class Editor extends Ext {
 		"fieldErrors" => array(),
 		"error" => "",
 		"data" => array(),
-		"ipOpts" => array()
+		"ipOpts" => array(),
+		"cancelled" => array()
 	);
 
 	/** @var array */
 	private $_events = array();
+
+	/** @var boolean */
+	private $_debug = false;
+
+	/** @var callback */
+	private $_validator = null;
+
+	/** @var boolean Enable true / catch when processing */
+	private $_tryCatch = true;
 
 
 
@@ -228,6 +238,24 @@ class Editor extends Ext {
 	public function db ( $_=null )
 	{
 		return $this->_getSet( $this->_db, $_ );
+	}
+
+
+	/**
+	 * Get / set debug mode.
+	 *
+	 * It can be useful to see the SQL statements that Editor is using. This
+	 * method enables that ability. Information about the queries used is
+	 * automatically added to the output data array / JSON under the property
+	 * name `debugSql`.
+	 * 
+	 *  @param boolean $_ Debug mode state. If not given, then used as a getter.
+	 *  @return boolean|self Debug mode state if no parameter is given, or
+	 *    self if used as a setter.
+	 */
+	public function debug ( $_=null )
+	{
+		return $this->_getSet( $this->_debug, $_ );
 	}
 
 
@@ -507,6 +535,7 @@ class Editor extends Ext {
 	 * to ensure data integrity while it is performing operations on the table.
 	 * This can be optionally disabled using this method, if required by your
 	 * database configuration.
+	 *
 	 *  @param boolean $_ Enable (`true`) or disabled (`false`) transactions.
 	 *    If not given, then used as a getter.
 	 *  @return boolean|self Transactions enabled flag, or self if used as a
@@ -522,108 +551,148 @@ class Editor extends Ext {
 	 * Get / set the primary key.
 	 *
 	 * The primary key must be known to Editor so it will know which rows are being
-	 * edited / deleted upon those actions. The default value is 'id'.
-	 *  @param string $_ Primary key's name. If not given, then used as a getter.
+	 * edited / deleted upon those actions. The default value is ['id'].
+	 *
+	 *  @param string|array $_ Primary key's name. If not given, then used as a
+	 *    getter. An array of column names can be given to allow composite keys to
+	 *    be used.
 	 *  @return string|self Primary key value if no parameter is given, or
 	 *    self if used as a setter.
 	 */
 	public function pkey ( $_=null )
 	{
+		if ( is_string( $_ ) ) {
+			$this->_pkey = array( $_ );
+			return $this;
+		}
 		return $this->_getSet( $this->_pkey, $_ );
 	}
 
 
 	/**
+	 * Convert a primary key array of field values to a combined value.
+	 *
+	 * @param  string  $row   The row of data that the primary key value should
+	 *   be extracted from.
+	 * @param  boolean $flat  Flag to indicate if the given array is flat
+	 *   (useful for `where` conditions) or nested for join tables.
+	 * @return string The created primary key value.
+	 * @throws \Exception If one of the values that the primary key is made up
+	 *    of cannot be found in the data set given, an Exception will be thrown.
+	 */
+	public function pkeyToValue ( $row, $flat=false )
+	{
+		$pkey = $this->_pkey;
+		$id = array();
+
+		for ( $i=0, $ien=count($pkey) ; $i<$ien ; $i++ ) {
+			$column = $pkey[ $i ];
+
+			if ( $flat ) {
+				$val = isset( $row[ $column ] ) ?
+					$row[ $column ] :
+					null;
+			}
+			else {
+				$val = $this->_readProp( $column, $row );
+			}
+
+			if ( $val === null ) {
+				throw new \Exception("Primary key element is not available in data set.", 1);
+			}
+
+			$id[] = $val;
+		}
+
+		return implode( $this->_pkey_separator(), $id );
+	}
+
+
+	/**
+	 * Convert a primary key combined value to an array of field values.
+	 *
+	 * @param  string  $value The id that should be split apart
+	 * @param  boolean $flat  Flag to indicate if the returned array should be
+	 *   flat (useful for `where` conditions) or nested for join tables.
+	 * @return array          Array of field values that the id was made up of.
+	 * @throws \Exception If the primary key value does not match the expected
+	 *   length based on the primary key configuration, an exception will be
+	 *   thrown.
+	 */
+	public function pkeyToArray ( $value, $flat=false )
+	{
+		$arr = array();
+		$value = str_replace( $this->idPrefix(), '', $value );
+		$idParts = explode( $this->_pkey_separator(), $value );
+
+		if ( count($this->_pkey) !== count($idParts) ) {
+			throw new \Exception("Primary key data doesn't match submitted data", 1);
+		}
+
+		for ( $i=0, $ien=count($idParts) ; $i<$ien ; $i++ ) {
+			if ( $flat ) {
+				$arr[ $this->_pkey[$i] ] = $idParts[$i];
+			}
+			else {
+				$this->_writeProp( $arr, $this->_pkey[$i], $idParts[$i] );
+			}
+		}
+
+		return $arr;
+	}
+
+
+	/**
 	 * Process a request from the Editor client-side to get / set data.
-	 *  @param array $data Typically $_POST or $_GET as required by what is sent by Editor
+	 *
+	 *  @param array $data Typically $_POST or $_GET as required by what is sent
+	    by Editor
 	 *  @return self
 	 */
 	public function process ( $data )
 	{
-		$this->_processData = $data;
-		$this->_formData = isset($data['data']) ? $data['data'] : null;
-
-		if ( $this->_transaction ) {
-			$this->_db->transaction();
+		if ( $this->_debug ) {
+			$debugVal = $this->_db->debug();
+			$this->_db->debug( true );
 		}
 
-		try {
-			$this->_prepJoin();
-
-			if ( !isset($data['action']) ) {
-				/* Get data */
-				$this->_out = array_merge( $this->_out, $this->_get( null, $data ) );
+		if ( $this->_tryCatch ) {
+			try {
+				$this->_process( $data );
 			}
-			else if ( $data['action'] == "upload" ) {
-				/* File upload */
-				$this->_upload( $data );
-			}
-			else if ( $data['action'] == "remove" ) {
-				/* Remove rows */
-				$this->_remove( $data );
-				$this->_fileClean();
-			}
-			else {
-				/* Create or edit row */
-				// Pre events so they can occur before the validation
-				foreach ($data['data'] as $id => $values) {
-					if ( $data['action'] == 'create' ) {
-						$this->_trigger( 'preCreate', $values );
-					}
-					else {
-						$id = str_replace( $this->_idPrefix, '', $id );
-						$this->_trigger( 'preEdit', $id, $values );
-					}
+			catch (\Exception $e) {
+				// Error feedback
+				$this->_out['error'] = $e->getMessage();
+				
+				if ( $this->_transaction ) {
+					$this->_db->rollback();
 				}
-
-				// Validation
-				$valid = $this->validate( $this->_out['fieldErrors'], $data );
-
-				// Global validation - if you want global validation - do it here
-				// $this->_out['error'] = "";
-
-				if ( $valid ) {
-					foreach ($data['data'] as $id => $values) {
-						$d = $data['action'] == "create" ?
-							$this->_insert( $values ) :
-							$this->_update( $id, $values );
-
-						if ( $d !== null ) {
-							$this->_out['data'][] = $d;
-						}
-					}
-				}
-
-				$this->_fileClean();
-			}
-
-			if ( $this->_transaction ) {
-				$this->_db->commit();
 			}
 		}
-		catch (\Exception $e) {
-			// Error feedback
-			$this->_out['error'] = $e->getMessage();
-			
-			if ( $this->_transaction ) {
-				$this->_db->rollback();
-			}
+		else {
+			$this->_process( $data );
 		}
 
-		// Tidy up the reply
-		if ( count( $this->_out['fieldErrors'] ) === 0 ) {
-			unset( $this->_out['fieldErrors'] );
-		}
-
-		if ( $this->_out['error'] === '' ) {
-			unset( $this->_out['error'] );
-		}
-
-		if ( count( $this->_out['ipOpts'] ) === 0 ) {
-			unset( $this->_out['ipOpts'] );
+		if ( $this->_debug ) {
+			$this->_out['debugSql'] = $this->_db->debugInfo();
+			$this->_db->debug( $debugVal );
 		}
 
 		return $this;
+	}
+
+
+	/**
+	 * Enable / try catch when `process()` is called. Disabling this can be
+	 * useful for debugging, but is not recommended for production.
+	 *
+	 * @param  boolean $_ `true` to enable (default), otherwise false to disable
+	 * @return boolean|Editor Value if used as a getter, otherwise `$this` when
+	 *   used as a setter.
+	 */
+	public function tryCatch ( $_=null )
+	{
+		return $this->_getSet( $this->_tryCatch, $_ );
 	}
 
 
@@ -672,6 +741,22 @@ class Editor extends Ext {
 		}
 
 		return count( $errors ) > 0 ? false : true;
+	}
+
+
+	/**
+	 * Get / set a global validator that will be triggered for the create, edit
+	 * and remove actions performed from the client-side.
+	 *
+	 * @param  [type] $_ Function to execute when validating the input data.
+	 *   It is passed three parameters: 1. The editor instance, 2. The action
+	 *   and 3. The values.
+	 * @return [Editor|callback] Editor instance if called as a setter, or the
+	 *   validator function if not.
+	 */
+	public function validator ( $_=null )
+	{
+		return $this->_getSet( $this->_validator, $_ );
 	}
 
 
@@ -743,12 +828,120 @@ class Editor extends Ext {
 	 */
 
 	/**
+	 * Process a request from the Editor client-side to get / set data.
+	 *
+	 *  @param array $data Data to process
+	 *  @private
+	 */
+	private function _process( $data )
+	{
+		$this->_processData = $data;
+		$this->_formData = isset($data['data']) ? $data['data'] : null;
+		$validator = $this->_validator;
+
+		if ( $this->_transaction ) {
+			$this->_db->transaction();
+		}
+
+		$this->_prepJoin();
+
+		if ( $validator ) {
+			$ret = $validator( $this, !isset($data['action']) ? self::ACTION_READ : $data['action'], $data );
+
+			if ( $ret ) {
+				$this->_out['error'] = $ret;
+			}
+		}
+
+		if ( ! $this->_out['error'] ) {
+			if ( ! isset($data['action']) ) {
+				/* Get data */
+				$this->_out = array_merge( $this->_out, $this->_get( null, $data ) );
+			}
+			else if ( $data['action'] == "upload" ) {
+				/* File upload */
+				$this->_upload( $data );
+			}
+			else if ( $data['action'] == "remove" ) {
+				/* Remove rows */
+				$this->_remove( $data );
+				$this->_fileClean();
+			}
+			else {
+				/* Create or edit row */
+				// Pre events so they can occur before the validation
+				foreach ($data['data'] as $idSrc => $values) {
+					$cancel = null;
+
+					if ( $data['action'] == 'create' ) {
+						$cancel = $this->_trigger( 'preCreate', $values );
+					}
+					else {
+						$id = str_replace( $this->_idPrefix, '', $idSrc );
+						$cancel = $this->_trigger( 'preEdit', $id, $values );
+					}
+
+					// One of the event handlers returned false - don't continue
+					if ( $cancel === false ) {
+						// Remove the data from the data set so it won't be processed
+						unset( $data['data'][$idSrc] );
+
+						// Tell the client-side we aren't updating this row
+						$this->_out['cancelled'][] = $idSrc;
+					}
+				}
+
+				// Field validation
+				$valid = $this->validate( $this->_out['fieldErrors'], $data );
+
+				if ( $valid ) {
+					foreach ($data['data'] as $id => $values) {
+						$d = $data['action'] == "create" ?
+							$this->_insert( $values ) :
+							$this->_update( $id, $values );
+
+						if ( $d !== null ) {
+							$this->_out['data'][] = $d;
+						}
+					}
+				}
+
+				$this->_fileClean();
+			}
+		}
+
+		if ( $this->_transaction ) {
+			$this->_db->commit();
+		}
+
+		// Tidy up the reply
+		if ( count( $this->_out['fieldErrors'] ) === 0 ) {
+			unset( $this->_out['fieldErrors'] );
+		}
+
+		if ( $this->_out['error'] === '' ) {
+			unset( $this->_out['error'] );
+		}
+
+		if ( count( $this->_out['ipOpts'] ) === 0 ) {
+			unset( $this->_out['ipOpts'] );
+		}
+
+		if ( count( $this->_out['cancelled'] ) === 0 ) {
+			unset( $this->_out['cancelled'] );
+		}
+	}
+
+
+	/**
 	 * Get an array of objects from the database to be given to DataTables as a
 	 * result of an sAjaxSource request, such that DataTables can display the information
 	 * from the DB in the table.
 	 *
-	 *  @param integer $id Primary key value to get an individual row (after create or
-	 *    update operations). Gets the full set if not given.
+	 *  @param integer|string $id Primary key value to get an individual row
+	      (after create or update operations). Gets the full set if not given.
+	      If a compound key is being used, this should be the string
+	      representation of it (i.e. joined together) rather than an array form.
 	 *  @param array $http HTTP parameters from GET or POST request (so we can service
 	 *    server-side processing requests from DataTables).
 	 *  @return array DataTables get information
@@ -757,6 +950,12 @@ class Editor extends Ext {
 	 */
 	private function _get( $id=null, $http=null )
 	{
+
+		$cancel = $this->_trigger( 'preGet', $id );
+		if ( $cancel === false ) {
+			return array();
+		}
+
 		$query = $this->_db
 			->query('select')
 			->table( $this->_table )
@@ -764,6 +963,11 @@ class Editor extends Ext {
 
 		// Add all fields that we need to get from the database
 		foreach ($this->_fields as $field) {
+			// Don't reselect a pkey column if it was already added
+			if ( in_array( $field->dbField(), $this->_pkey ) ) {
+				continue;
+			}
+
 			if ( $field->apply('get') && $field->getValue() === null ) {
 				$query->get( $field->dbField() );
 			}
@@ -774,18 +978,18 @@ class Editor extends Ext {
 		$ssp = $this->_ssp_query( $query, $http );
 
 		if ( $id !== null ) {
-			$query->where( $this->_pkey, $id );
+			$query->where( $this->pkeyToArray( $id, true ) );
 		}
 
 		$res = $query->exec();
 		if ( ! $res ) {
-			throw new \Exception('Error executing SQL for data get');
+			throw new \Exception('Error executing SQL for data get. Enable SQL debug using `->debug(true)`');
 		}
 
 		$out = array();
 		while ( $row=$res->fetch() ) {
 			$inner = array();
-			$inner['DT_RowId'] = $this->_idPrefix . $row[ $this->_pkey ];
+			$inner['DT_RowId'] = $this->_idPrefix . $this->pkeyToValue( $row, true );
 
 			foreach ($this->_fields as $field) {
 				if ( $field->apply('get') ) {
@@ -812,6 +1016,8 @@ class Editor extends Ext {
 			$this->_join[$i]->data( $this, $out, $options );
 		}
 
+		$this->_trigger( 'postGet', $out, $id );
+
 		return array_merge(
 			array(
 				'data'    => $out,
@@ -829,14 +1035,20 @@ class Editor extends Ext {
 	 */
 	private function _insert( $values )
 	{
+		// Only allow a composite insert if the values for the key are
+		// submitted. This is required because there is no reliable way in MySQL
+		// to return the newly inserted row, so we can't know any newly
+		// generated values.
+		$this->_pkey_validate_insert( $values );
+
 		// Insert the new row
 		$id = $this->_insert_or_update( null, $values );
 
-		// Was the primary key sent and set? Unusual, but it is possible
-		$pkeyField = $this->_find_field( $this->_pkey, 'name' );
-		if ( $pkeyField && $pkeyField->apply( 'edit', $values ) ) {
-			$id = $pkeyField->val( 'set', $values );
-		}
+		// Was the primary key altered as part of the edit, if so use the
+		// submitted values
+		$id = count( $this->_pkey ) > 1 ?
+			$this->pkeyToValue( $values ) :
+			$this->_pkey_submit_merge( $id, $values );
 
 		// Join tables
 		for ( $i=0 ; $i<count($this->_join) ; $i++ ) {
@@ -874,12 +1086,9 @@ class Editor extends Ext {
 			$this->_join[$i]->update( $this, $id, $values );
 		}
 
-		// Was the primary key altered as part of the edit? Unusual, but it is
-		// possible
-		$pkeyField = $this->_find_field( $this->_pkey, 'name' );
-		$getId = $pkeyField && $pkeyField->apply( 'edit', $values ) ?
-			$pkeyField->val( 'set', $values ) :
-			$id;
+		// Was the primary key altered as part of the edit, if so use the
+		// submitted values
+		$getId = $this->_pkey_submit_merge( $id, $values );
 
 		// Full data set for the modified row
 		$row = $this->_get( $getId );
@@ -906,12 +1115,19 @@ class Editor extends Ext {
 			// Strip the ID prefix that the client-side sends back
 			$id = str_replace( $this->_idPrefix, "", $idSrc );
 
-			$this->_trigger( 'preRemove', $id, $rowData );
-			$ids[] = $id;
+			$res = $this->_trigger( 'preRemove', $id, $rowData );
+
+			// Allow the event to be cancelled and inform the client-side
+			if ( $res === false ) {
+				$this->_out['cancelled'][] = $idSrc;
+			}
+			else {
+				$ids[] = $id;
+			}
 		}
 
 		if ( count( $ids ) === 0 ) {
-			throw new \Exception('No ids submitted for the delete');
+			return;
 		}
 
 		// Row based joins - remove first as the host row will be removed which
@@ -936,9 +1152,11 @@ class Editor extends Ext {
 			}
 
 			// Only delete on the primary key, since that is what the ids refer
-			// to - otherwise we'd be deleting random data!
-			if ( $parentLink === $this->_pkey ) {
-				$this->_remove_table( $join['table'], $ids, $childLink );
+			// to - otherwise we'd be deleting random data! Note that this
+			// won't work with compound keys since the parent link would be
+			// over multiple fields.
+			if ( $parentLink === $this->_pkey[0] && count($this->_pkey) === 1 ) {
+				$this->_remove_table( $join['table'], $ids, array($childLink) );
 			}
 		}
 
@@ -1006,7 +1224,7 @@ class Editor extends Ext {
 			);
 		}
 		else {
-			$files = $this->_fileData( $upload->table() );
+			$files = $this->_fileData( $upload->table(), $res );
 
 			$this->_out['files'] = $files;
 			$this->_out['upload']['id'] = $res;
@@ -1020,19 +1238,20 @@ class Editor extends Ext {
 	 *
 	 * @param  string [$limitTable=null] Limit the data gathering to a single
 	 *     table only
+	 * @param number [$id=null] Limit to a specific id
 	 * @return array File information
 	 * @private
 	 */
-	private function _fileData ( $limitTable=null )
+	private function _fileData ( $limitTable=null, $id=null )
 	{
 		$files = array();
 
 		// The fields in this instance
-		$this->_fileDataFields( $files, $this->_fields, $limitTable );
+		$this->_fileDataFields( $files, $this->_fields, $limitTable, $id );
 		
 		// From joined tables
 		for ( $i=0 ; $i<count($this->_join) ; $i++ ) {
-			$this->_fileDataFields( $files, $this->_join[$i]->fields(), $limitTable );
+			$this->_fileDataFields( $files, $this->_join[$i]->fields(), $limitTable, $id );
 		}
 
 		return $files;
@@ -1047,7 +1266,7 @@ class Editor extends Ext {
 	 *     only
 	 * @private
 	 */
-	private function _fileDataFields ( &$files, $fields, $limitTable )
+	private function _fileDataFields ( &$files, $fields, $limitTable, $id=null )
 	{
 		foreach ($fields as $field) {
 			$upload = $field->upload();
@@ -1067,7 +1286,7 @@ class Editor extends Ext {
 					continue;
 				}
 
-				$fileData = $upload->data( $this->_db );
+				$fileData = $upload->data( $this->_db, $id );
 
 				if ( $fileData !== null ) {
 					$files[ $table ] = $fileData;
@@ -1131,7 +1350,7 @@ class Editor extends Ext {
 		$ssp_set_count = $this->_db
 			->query('select')
 			->table( $this->_table )
-			->get( 'COUNT('.$this->_pkey.') as cnt' );
+			->get( 'COUNT('.$this->_pkey[0].') as cnt' );
 		$this->_get_where( $ssp_set_count );
 		$this->_ssp_filter( $ssp_set_count, $http );
 		$this->_perform_left_join( $ssp_set_count );
@@ -1141,7 +1360,7 @@ class Editor extends Ext {
 		$ssp_full_count = $this->_db
 			->query('select')
 			->table( $this->_table )
-			->get( 'COUNT('.$this->_pkey.') as cnt' );
+			->get( 'COUNT('.$this->_pkey[0].') as cnt' );
 		$this->_get_where( $ssp_full_count );
 		if ( count( $this->_where ) ) { // only needed if there is a where condition
 			$this->_perform_left_join( $ssp_full_count );
@@ -1173,7 +1392,7 @@ class Editor extends Ext {
 		if ( ! $field ) {
 			// Is it the primary key?
 			if ( $name === 'DT_RowId' ) {
-				return $this->_pkey;
+				return $this->_pkey[0];
 			}
 
 			throw new \Exception('Unknown field: '.$name .' (index '.$index.')');
@@ -1355,11 +1574,13 @@ class Editor extends Ext {
 	/**
 	 * Insert or update a row for all main tables and left joined tables.
 	 *
-	 *  @param int $id ID to use to condition the update. If null is given, the
-	 *      first query performed is an insert and the inserted id used as the
-	 *      value should there be any subsequent tables to operate on.
-	 *  @return \DataTables\Database\Result Result from the query or null if no query
-	 *      performed.
+	 *  @param int|string $id ID to use to condition the update. If null is
+	 *      given, the first query performed is an insert and the inserted id
+	 *      used as the value should there be any subsequent tables to operate
+	 *      on. Mote that for compound keys, this should be the "joined" value
+	 *      (i.e. a single string rather than an array).
+	 *  @return \DataTables\Database\Result Result from the query or null if no
+	 *      query performed.
 	 *  @private
 	 */
 	private function _insert_or_update ( $id, $values )
@@ -1369,9 +1590,9 @@ class Editor extends Ext {
 			$res = $this->_insert_or_update_table(
 				$this->_table[$i],
 				$values,
-				$id === null ?
-					null :
-					array($this->_pkey => $id)
+				$id !== null ?
+					$this->pkeyToArray( $id, true ) :
+					null
 			);
 
 			// If we don't have an id yet, then the first insert will return
@@ -1402,7 +1623,7 @@ class Editor extends Ext {
 				$childLink = $join['field2'];
 			}
 
-			if ( $parentLink === $this->_pkey ) {
+			if ( $parentLink === $this->_pkey[0] && count($this->_pkey) === 1 ) {
 				$whereVal = $id;
 			}
 			else {
@@ -1521,10 +1742,10 @@ class Editor extends Ext {
 
 		// Insert or update
 		if ( $action === 'create' ) {
-			return $this->_db->insert( $table, $set );
+			return $this->_db->insert( $table, $set, $this->_pkey );
 		}
 		else {
-			return $this->_db->push( $table, $set, $where );
+			return $this->_db->push( $table, $set, $where, $this->_pkey );
 		}
 	}
 
@@ -1559,11 +1780,19 @@ class Editor extends Ext {
 		}
 
 		if ( $count > 0 ) {
-			$this->_db
+			$q = $this->_db
 				->query( 'delete' )
-				->table( $table )
-				->or_where( $pkey, $ids )
-				->exec();
+				->table( $table );
+
+			for ( $i=0, $ien=count($ids) ; $i<$ien ; $i++ ) {
+				$cond = $this->pkeyToArray( $ids[$i], true );
+
+				$q->or_where( function ($q2) use ($cond) {
+					$q2->where( $cond );
+				} );
+			}
+
+			$q->exec();
 		}
 	}
 
@@ -1582,8 +1811,12 @@ class Editor extends Ext {
 		}
 
 		// Check if the primary key has a table identifier - if not - add one
-		if ( strpos( $this->_pkey, '.' ) === false ) {
-			$this->_pkey = $this->_alias( $this->_table[0], 'alias' ).'.'.$this->_pkey;
+		for ( $i=0, $ien=count($this->_pkey) ; $i<$ien ; $i++ ) {
+			$val = $this->_pkey[$i];
+
+			if ( strpos( $val, '.' ) === false ) {
+				$this->_pkey[$i] = $this->_alias( $this->_table[0], 'alias' ).'.'.$val;
+			}
 		}
 
 		// Check that all fields have a table selector, otherwise, we'd need to
@@ -1674,6 +1907,7 @@ class Editor extends Ext {
 	 */
 	private function _trigger ()
 	{
+		$out = null;
 		$args = func_get_args();
 		$eventName = array_shift( $args );
 		array_unshift( $args, $this );
@@ -1685,8 +1919,82 @@ class Editor extends Ext {
 		$events = $this->_events[ $eventName ];
 
 		for ( $i=0, $ien=count($events) ; $i<$ien ; $i++ ) {
-			call_user_func_array( $events[$i], $args );
+			$res = call_user_func_array( $events[$i], $args );
+
+			if ( $res !== null ) {
+				$out = $res;
+			}
 		}
+
+		return $out;
+	}
+
+
+	/**
+	 * Merge a primary key value with an updated data source.
+	 *
+	 * @param  string $pkeyVal Old primary key value to merge into
+	 * @param  array  $row     Data source for update
+	 * @return string          Merged value
+	 */
+	private function _pkey_submit_merge ( $pkeyVal, $row )
+	{
+		$pkey = $this->_pkey;
+		$arr = $this->pkeyToArray( $pkeyVal, true );
+
+		for ( $i=0, $ien=count($pkey) ; $i<$ien ; $i++ ) {
+			$column = $pkey[ $i ];
+			$field = $this->_find_field( $column, 'db' );
+
+			if ( $field && $field->apply( 'edit', $row ) ) {
+				$arr[ $column ] = $field->val( 'set', $row );
+			}
+		}
+
+		return $this->pkeyToValue( $arr, true );
+	}
+
+
+	/**
+	 * Validate that all primary key fields have values for create.
+	 *
+	 * @param  array $row Row's data
+	 * @return boolean    `true` if valid, `false` otherwise
+	 */
+	private function _pkey_validate_insert ( $row )
+	{
+		$pkey = $this->_pkey;
+
+		if ( count( $pkey ) === 1 ) {
+			return true;
+		}
+
+		for ( $i=0, $ien=count($pkey) ; $i<$ien ; $i++ ) {
+			$column = $pkey[ $i ];
+			$field = $this->_find_field( $column, 'db' );
+
+			if ( ! $field || ! $field->apply("set", $row) ) {
+				throw new Exception( "When inserting into a compound key table, ".
+					"all fields that are part of the compound key must be ".
+					"submitted with a specific value.", 1
+				);
+			}
+		}
+
+		return true;
+	}
+
+
+	/**
+	 * Create the separator value for a compound primary key.
+	 *
+	 * @return string Calculated separator
+	 */
+	private function _pkey_separator ()
+	{
+		$str = implode(',', $this->_pkey);
+
+		return hash( 'crc32', $str );
 	}
 }
 

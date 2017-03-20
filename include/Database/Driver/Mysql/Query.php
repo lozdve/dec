@@ -80,7 +80,8 @@ class DriverMysqlQuery extends Query {
 
 	protected function _prepare( $sql )
 	{
-		$this->_stmt = $this->_dbcon->prepare( $sql );
+		$resource = $this->database()->resource();
+		$this->_stmt = $resource->prepare( $sql );
 
 		// bind values
 		for ( $i=0 ; $i<count($this->_bindings) ; $i++ ) {
@@ -93,7 +94,7 @@ class DriverMysqlQuery extends Query {
 			);
 		}
 
-		//file_put_contents( '/tmp/editor_sql', $sql."\n", FILE_APPEND );
+		$this->database()->debugInfo( $sql, $this->_bindings );
 	}
 
 
@@ -108,7 +109,8 @@ class DriverMysqlQuery extends Query {
 			return false;
 		}
 
-		return new DriverMysqlResult( $this->_dbcon, $this->_stmt );
+		$resource = $this->database()->resource();
+		return new DriverMysqlResult( $resource, $this->_stmt );
 	}
 }
 

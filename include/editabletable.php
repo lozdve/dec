@@ -14,6 +14,7 @@ use
 	DataTables\Editor\Format,
 	DataTables\Editor\Mjoin,
 	DataTables\Editor\Upload,
+	DataTables\Editor\Options,
 	DataTables\Editor\Validate;
 
 // Build our Editor instance and process the data coming from _POST
@@ -99,6 +100,36 @@ else if (isset($_POST['trans'])) {
 			Field::inst( 'terms.Term' )
 		)
 		->leftJoin('terms', 'terms.TermID', '=', 'invidx.TermID AND invidx.FamID='.$_POST['famID'])
+		->process( $_POST )
+		->json();
+}
+
+else if (isset($_POST['inv_no']) && isset($_POST['termid'])) {
+	$inv_no = $_POST['inv_no'];
+	$famid = $_POST['famid'];
+	// var_dump($inv_no);
+	Editor::inst( $db, 'invtrans', 'IndDetID')
+		->fields(
+			Field::inst( 'people.First' ),
+			Field::inst( 'people.Last' ),
+			Field::inst( 'invtrans.Description' ),
+			Field::inst( 'invtrans.QtyAttend' ),
+			Field::inst( 'invtrans.Session' ),
+			Field::inst( 'invtrans.Term' ),
+			Field::inst( 'invtrans.Exam'),
+			Field::inst( 'invtrans.InvNo' ),
+			Field::inst( 'invtrans.IndDetID'),
+			Field::inst( 'invtrans.discount'),
+			Field::inst( 'invtrans.StudentID')
+				->options( Options::inst()
+					->table('people')
+					->value('PersonID')
+					->label(array('First', 'Last'))
+					->where(function($q) {
+						$q->where('FamilyID', $_POST['famid'], '=');
+					}))
+		)
+		->leftJoin('people', 'people.PersonID', '=', 'invtrans.StudentID AND invtrans.InvNo=\'' .$_POST['inv_no']. '\'')
 		->process( $_POST )
 		->json();
 }

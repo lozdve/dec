@@ -600,8 +600,24 @@ class MySQLDB {
         return $result;
     }
 
+    function getAllPeople() {
+        $query = "SELECT * FROM " . TBL_PEOPLE;
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
     function getAllTerms() {
         $query = "SELECT * FROM " . TBL_TERMS ." ORDER BY Year DESC, Term DESC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getSheetsClassTerm() {
+        $query = "SELECT * FROM " . TBL_TERMS ." WHERE terms.TermID IN (SELECT times.TermID FROM " . TBL_TIMES . " ) GROUP BY TermID DESC";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();
@@ -640,6 +656,22 @@ class MySQLDB {
         return $result;
     }
 
+    function getInvidxByInvNo($invno) {
+        $query = "SELECT * FROM " . TBL_INVIDX . " WHERE InvNo = '".$invno."'";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getInvtransByNo($inv_no) {
+        $query = "SELECT * FROM " .TBL_INVTRANS. " INNER JOIN " .TBL_PEOPLE. " ON people.PersonID=invtrans.StudentID AND invtrans.InvNo='" .$inv_no. "' GROUP BY invtrans.IndDetID ORDER BY StudentID ASC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
     function getTermByTermID($term_id) {
         $query = "SELECT * FROM " . TBL_TERMS . " WHERE TermID='$term_id'";
         $stmt = $this->connection->prepare($query);
@@ -650,6 +682,30 @@ class MySQLDB {
 
     function getClassByTermID($term_id) {
         $query = "SELECT * FROM " . TBL_ATTENDANCE . " WHERE TermID='$term_id' ORDER BY ClassID ASC, TimeID ASC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getBanking() {
+        $query = "SELECT * FROM " .TBL_BANKING;
+        $stmt=$this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getAllGL() {
+        $query = "SELECT * FROM " .TBL_GL;
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getCurrTerm() {
+        $query = "SELECT * FROM " .TBL_FLAGS;
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();
@@ -704,6 +760,14 @@ class MySQLDB {
         return $result;
     }
 
+    function moneyOwingByFamily($famid) {
+        $query = "SELECT SUM(Amount), FamID,TermID FROM " .TBL_INVIDX. " WHERE FamID= '$famid' GROUP BY FamID,TermID HAVING SUM(Amount) != 0";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
     function debtorsReport($date) {
         $query = "SELECT SUM(Amount) FROM ".TBL_INVIDX." WHERE Date < '$date'";
         $stmt = $this->connection->prepare($query);
@@ -717,6 +781,39 @@ class MySQLDB {
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();
+        return $result;
+    }
+
+
+    function updateGL($code, $print) {
+        $query = "UPDATE " .TBL_GL. " SET Print='$print' WHERE GLAccount='$code'";
+        $stmt = $this->connection->prepare($query);
+        $result = $stmt->execute();
+        return $result;
+    }
+
+    function update_default_term($val) {
+        $query = "UPDATE " .TBL_FLAGS. " SET DefTerm='$val'";
+        $stmt = $this->connection->prepare($query);
+        $result = $stmt->execute();
+        return $result;
+    }
+
+    function updateInvidx($invno) {
+        $total = $this->calcTermInvtrans($invno);
+        floatval($total);
+        $query = "UPDATE " .TBL_INVIDX. " SET Amount='$total', Posted='1' WHERE InvNo='$invno'";
+        // var_dump(gettype($total));
+        // var_dump($query);
+        $stmt = $this->connection->prepare($query);
+        $result = $stmt->execute();
+        return $result;
+    }
+
+    function updateInvDate($invno,$date) {
+        $query = "UPDATE " .TBL_INVIDX. " SET Date='$date' WHERE InvNo='$invno'";
+        $stmt = $this->connection->prepare($query);
+        $result = $stmt->execute();
         return $result;
     }
 
@@ -769,7 +866,9 @@ class MySQLDB {
     }
 
     function addNewPaymentToInv($date, $ref, $amount, $famid, $method, $termid) {
-        $query = "INSERT INTO " .TBL_INVIDX. " (Date, Reference, Description, Amount, FamID, PayType, TermID, Type, Posted) VALUES ('$date', '$ref', '$ref', '$amount', '$famid', '$method', '$termid', 'P', '1')";
+        $amount = '-'.$amount;
+        $famName = $this->getFamilyDetailbyID($famid)[0][2];
+        $query = "INSERT INTO " .TBL_INVIDX. " (Date, Reference, Description, Amount, FamID, PayType, TermID, Type, Posted) VALUES ('$date', '$ref', '$famName', '$amount', '$famid', '$method', '$termid', 'P', '1')";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         //return $result;
@@ -783,6 +882,140 @@ class MySQLDB {
         $stmt->execute();
         //return $result;
         return $this->connection->lastInsertId();
+    }
+
+    function addNewJournal($termid, $famid, $date, $desc, $amount, $acct) {
+        $query = "INSERT INTO " .TBL_INVIDX. " (Type, Date, Reference, Description, Amount, FamID, Posted, TermID, GL) VALUES ('J', '$date', '$desc', '$desc', '$amount', '$famid', '1', '$termid', '$acct')";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        //return $result;
+        return $this->connection->lastInsertId();
+    }
+
+    function addNewTermInvidx($termid, $date, $type) {
+        /*
+        'I','201642014t', '$date', 'Term4, 2016', 'invoice 201642014t', '0.00', 'tmp[i][22'], '0','0', '$termid','0'
+
+        */
+        $subquery = null;
+        $newinvs = $this->calcNewInvidx($termid, $type);
+        if(count($newinvs) == 0) {
+            return false;
+        }
+        $terminfo = $this->getTermByTermID($termid);
+        $term_format = 'Term ' .$terminfo[0][2]. ', ' .$terminfo[0][3];
+        $query = "INSERT INTO " .TBL_INVIDX. " (Type, InvNo, Date, Reference, Description, Amount, FamID, PayType, Posted, TermID, GL) VALUES ";
+        if($type == 'T') {
+            for($i=0;$i<sizeof($newinvs);$i++) {
+                if($i != sizeof($newinvs)-1 ) {
+                    $query .= "('I','" .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "T', '$date', '$term_format', 'Invoice " .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "T', '0.00', '" .$newinvs[$i][22]. "', '$type', '0', '$termid', '0'), ";
+                } else {
+                    $query .= "('I','" .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "T', '$date', '$term_format', 'Invoice " .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "T', '0.00', '" .$newinvs[$i][22]. "', '0', '0', '$termid', '0')";
+                }
+            }
+            $subquery = "UPDATE " .TBL_TERMS. " SET InvoicedTerm=1 WHERE TermID=" .$termid;
+        }
+        else if ($type == 'C') {
+            for($i=0;$i<sizeof($newinvs);$i++) {
+                if($i != sizeof($newinvs)-1 ) {
+                    $query .= "('I','" .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "C', '$date', '$term_format', 'Invoice " .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "C', '0.00', '" .$newinvs[$i][22]. "', '$type', '0', '$termid', '0'), ";
+                } else {
+                    $query .= "('I','" .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "C', '$date', '$term_format', 'Invoice " .$terminfo[0][3].$terminfo[0][2].$newinvs[$i][22]. "C', '0.00', '" .$newinvs[$i][22]. "', '0', '0', '$termid', '0')";
+                }
+            }
+            $subquery = "UPDATE " .TBL_TERMS. " SET InvoicedClass=1 WHERE TermID=" .$termid;
+        }
+        
+        $stmt = $this->connection->prepare($query);
+        $stmt1 = $this->connection->prepare($subquery);
+        $result = $stmt->execute();
+        $result1 = $stmt1->execute();
+
+        return $result;
+
+        // var_dump($this->calcNewInvidx($termid,$type));
+    }
+
+    function addNewTermInvtrans($termid, $date, $type) {
+        $term_stu = $this->calcNewInvtrans($termid,$type);
+        $terminfo = $this->getTermByTermID($termid);
+        $all_class = $this->getAllClass();
+        $query = "INSERT INTO " .TBL_INVTRANS. " (InvNo, StudentID, Description, QtyAttend, Session, Term, Exam, GL, ExamAss, ClassID) VALUES ";
+
+        if($type == 'T') {
+            for($i=0; $i<sizeof($term_stu); $i++) {
+                if($i != sizeof($term_stu)-1) {
+                    $query .= "('" .$terminfo[0][3].$terminfo[0][2].$term_stu[$i][22].$type. "', '".$term_stu[$i][1]."', '".$term_stu[$i]['Class']."', '0', '0', '".$term_stu[$i][18]."', '0', '".$term_stu[$i]['GL']."', '".$term_stu[$i]['ExamAss']."', '".$term_stu[$i]['ClassID']."'), ";
+                } else {
+                    $query .= "('" .$terminfo[0][3].$terminfo[0][2].$term_stu[$i][22].$type. "', '".$term_stu[$i][1]."', '".$term_stu[$i]['Class']."', '0', '0', '".$term_stu[$i][18]."', '0', '".$term_stu[$i]['GL']."', '".$term_stu[$i]['ExamAss']."', '".$term_stu[$i]['ClassID']."') ";
+                }
+            }
+        }
+        else if($type == 'C') {
+            for($i=0; $i<sizeof($term_stu); $i++) {
+                $qty = 0;
+                for($j=3;$j<13;$j++) {
+                    if($term_stu[$i][$j] == 'A') {
+                        $qty++;
+                    }
+                }
+                if($i != sizeof($term_stu)-1) {
+                    $query .= "('" .$terminfo[0][3].$terminfo[0][2].$term_stu[$i][22].$type. "', '".$term_stu[$i][1]."', '".$term_stu[$i]['Class']."', '".$qty."', '".$term_stu[$i]['PayAmount']."', '".$term_stu[$i]['PayAmount']*$qty."', '0', '".$term_stu[$i]['GL']."', '".$term_stu[$i]['ExamAss']."', '".$term_stu[$i]['ClassID']."'), ";
+                } else {
+                    $query .= "('" .$terminfo[0][3].$terminfo[0][2].$term_stu[$i][22].$type. "', '".$term_stu[$i][1]."', '".$term_stu[$i]['Class']."', '".$qty."', '".$term_stu[$i]['PayAmount']."', '".$term_stu[$i]['PayAmount']*$qty."', '0', '".$term_stu[$i]['GL']."', '".$term_stu[$i]['ExamAss']."', '".$term_stu[$i]['ClassID']."') ";
+                }
+            }
+        }
+        $stmt = $this->connection->prepare($query);
+        $result = $stmt->execute();
+
+        return $result;
+    }
+
+    function calcNewInvtrans($termid, $type) {
+        $query = "SELECT * FROM " .TBL_ATTENDANCE. " INNER JOIN " .TBL_PEOPLE. " ON TermID=" .$termid." AND attendance.StudentID = People.PersonID AND PayDefault= '" .$type. "' INNER JOIN " .TBL_CLASS. " ON attendance.ClassID = class.ClassID GROUP BY AttendID";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function calcTermInvtrans($inv_no) {
+        $query = "SELECT * FROM " .TBL_INVTRANS. " WHERE InvNo='" .$inv_no. "'";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        $total = 0;
+        for($i=0; $i<sizeof($result); $i++) {
+            $total += $result[$i]['Term'];
+            $total += $result[$i]['Exam'];
+        }
+
+        return $total;
+    }
+
+    function calcNewInvidx($termid, $type) {
+        $query = "SELECT * FROM " .TBL_ATTENDANCE. " INNER JOIN " .TBL_PEOPLE. " ON TermID=" .$termid." AND attendance.StudentID = People.PersonID AND PayDefault= '" .$type. "' GROUP BY familyID";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function checkCode($famcode) {
+        $query = "SELECT Code FROM " .TBL_FAMILY. " WHERE Code='$famcode'";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+        // var_dump($result);
+    }
+
+    function delAllBanking() {
+        $query = "DELETE FROM " .TBL_BANKING;
+        $stmt = $this->connection->prepare($query);
+        $result = $stmt->execute();
+        return $result;
     }
 }
 ;

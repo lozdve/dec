@@ -43,8 +43,7 @@ if(!$session->logged_in){
         <div class="pageheader">
             <div class="pageicon"><i class="fa fa-laptop" aria-hidden="true"></i></div>
             <div class="pagetitle">
-                <h5>All Features Summary</h5>
-                <h1>Dashboard</h1>
+                <h1>Students</h1>
             </div>
         </div><!--pageheader-->
         
@@ -123,9 +122,9 @@ if(!$session->logged_in){
                         } else if(d2 ==null) {
                             return d1;
                         } else if(d3 ==null) {
-                            return d1+' '+d2;
+                            return d1+', '+d2;
                         } else {
-                            return d1+ ' '+ d2 +' '+ d3;
+                            return d1+ ', '+ d2;
                         }
                     } },
                 { data: "Phone", "orderable": false, width: "10%" },

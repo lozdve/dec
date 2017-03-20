@@ -474,7 +474,14 @@ if(!$session->logged_in){
                                                     return null; 
                                             }
             },
-            { data: "invidx.InvNo", width: "15%" },
+            { data: "invidx", width: "15%", 
+                render:function(data,type,row) {
+                    if(data.InvNo!= null)
+                        return "<a href=\"single_inv_pdf?inv_no="+data.InvNo+  "&term_id="+data.TermID+"\" target=\"_blank\">"+data.InvNo+"</a>";
+                    else
+                        return null
+                    } 
+            },
             { data: "invidx.Reference", width: "15%" },
             { data: "invidx.Description", width: "20%" },
             { data: "invidx.Amount", width: "15%",render: $.fn.dataTable.render.number( ',', '.', 2, '$' ) },

@@ -298,7 +298,82 @@ jQuery(document).ready(function($){
 				}
 			});
 		}
+	})
 
+	$('#fam-code').focusout(function(e) {
+		e.preventDefault();
+		var value = $(this).val();
+		$.ajax({
+			type: 'post',
+			url: 'process.php',
+			dataType: "JSON",
+			data: {fam_code: value},
+			success: function(data) {
+				if(!jQuery.isEmptyObject(data)) {
+					confirm("Duplicated Family Code!!!");
+					$('.editfam-div:first-child').find('input').val('');
+					$('.editfam-div:first-child').find('input').focus();
+				}
+			}
+		})
+	})
+
+
+	$('#editfam').submit(function(e) {
+		if($('#fam-code').val() == '') {
+			alert('please fill in Family Code');
+			return false;
+		}
+		if($('#fam-last').val() == '') {
+			alert('please fill in Last Name');
+			return false;
+		}
+	})
+
+	$('.acc-check').click(function(e) {
+		if($(this).is(':checked')) {
+			$.ajax({
+				type: 'post',
+				url: 'process.php',
+				data: {acc_code:$(this).attr('value'), acc_print: 1}
+			})
+		} else if(!$(this).is(':checked')) {
+			$.ajax({
+				type: 'post',
+				url: 'process.php',
+				data: {acc_code:$(this).attr('value'), acc_print: 0}
+			})
+		}
+	})
+
+	$('#curr_term').change(function() {
+		$.ajax({
+			type: 'post',
+			url: 'process.php',
+			data: {curr_term: $(this).val()}
+		})
+	})
+
+	$("form[name='savedinv_form']").submit(function (e) {
+		e.preventDefault();
+		var $form = $(this);
+		var term = $form.find("select[name='saved_term']").val();
+		var date = $form.find("input[name='saved_date']").val();
+		var type = $form.find("select[name='saved_type']").val();
+
+		$.ajax({
+			type: 'POST',
+			url: 'process.php',
+			data: {saved_term: term, saved_date:date, saved_type:type, invterm:true},
+			success: function(output) {	
+				$('#saved_popup_suc').css('display', 'block');
+	            setTimeout(function() {
+	                $('#saved_popup_suc').fadeOut();
+	            },2500)	 
+			},
+			error: function(output) {
+			}
+		})
 	})
 
 	$('.ajaxselectclass').change(function(e) {
@@ -327,7 +402,7 @@ jQuery(document).ready(function($){
 	})
 
 	$('#select-fam').selectize({
-	    create: true,
+	    create: false,
 	    sortField: 'text'
 	});
 

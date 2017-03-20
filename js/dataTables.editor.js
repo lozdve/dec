@@ -5320,7 +5320,6 @@ Editor.prototype._submit = function ( successCallback, errorCallback, formatdata
 					}
 				}
 			} );
-
 			if ( ! $.isEmptyObject( allRowData ) ) {
 				allData[ idSrc ] = allRowData;
 			}

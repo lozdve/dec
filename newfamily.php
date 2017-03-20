@@ -58,13 +58,13 @@ if(!$session->logged_in){
                             <div class="col-3 editfam-div">
                                 <label>
                                     Code
-                                    <input class="" name="fam-code" tabindex="1" value>
+                                    <input class="" name="fam-code" id="fam-code" tabindex="1" value>
                                 </label>
                             </div>
                             <div class="col-3 editfam-div">
                                 <label>
                                     Last
-                                    <input class=""  name="fam-last" tabindex="2" value>
+                                    <input class=""  name="fam-last" id="fam-last" tabindex="2" value>
                                 </label>
                             </div>
                             <div class="col-3 editfam-div">

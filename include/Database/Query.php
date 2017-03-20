@@ -50,9 +50,9 @@ class Query {
 	 *  @param string          $type  Query type - 'select', 'insert', 'update' or 'delete'
 	 *  @param string|string[] $table Tables to operate on - see {@link table}.
 	 */
-	public function __construct( $db, $type, $table=null )
+	public function __construct( $dbHost, $type, $table=null )
 	{
-		$this->_dbcon = $db;
+		$this->_dbHost = $dbHost;
 		$this->_type = $type;
 		$this->table( $table );
 	}
@@ -67,12 +67,6 @@ class Query {
 	 * @internal
 	 */
 	protected $_type = "";
-
-	/**
-	 * @var resource Database connection
-	 * @internal
-	 */
-	protected $_dbcon = null;
 
 	/**
 	 * @var array
@@ -138,13 +132,19 @@ class Query {
 	 * @var string
 	 * @internal
 	 */
-	protected $_identifier_limiter = '`';
+	protected $_identifier_limiter = array( '`', '`' );
 
 	/**
 	 * @var string
 	 * @internal
 	 */
 	protected $_field_quote = '\'';
+
+	/**
+	 * @var array
+	 * @internal
+	 */
+	protected $_pkey = null;
 
 
 
@@ -243,6 +243,17 @@ class Query {
 		return $this;
 	}
 
+
+	/**
+	 * Get the Database host for this query instance
+	 * @return DataTable Database class instance
+	 */
+	public function database ()
+	{
+		return $this->_dbHost;
+	}
+
+
 	/**
 	 * Set a distinct flag for a `select` query. Note that this has no effect on
 	 * any of the other query types.
@@ -254,6 +265,7 @@ class Query {
 		$this->_distinct = $dis;
 		return $this;
 	}
+
 
 	/**
 	 * Execute the query.
@@ -364,6 +376,24 @@ class Query {
 	public function limit ( $lim )
 	{
 		$this->_limit = $lim;
+
+		return $this;
+	}
+
+
+	/**
+	 * Get / set the primary key column name(s) so they can be easily returned
+	 * after an insert.
+	 * @param  string[] $pkey Primary keys
+	 * @return Query|string[]
+	 */
+	public function pkey ( $pkey=null )
+	{
+		if ( $pkey === null ) {
+			return $this->_pkey;
+		}
+
+		$this->_pkey = $pkey;
 
 		return $this;
 	}
@@ -528,14 +558,12 @@ class Query {
 			$key( $this );
 			$this->_where_group( false, 'OR' );
 		}
-		else {
-			if ( !is_array($key) && is_array($value) ) {
-				for ( $i=0 ; $i<count($value) ; $i++ ) {
-					$this->where( $key, $value[$i], $op, $bind );
-				}
-				return $this;
+		else if ( !is_array($key) && is_array($value) ) {
+			for ( $i=0 ; $i<count($value) ; $i++ ) {
+				$this->where( $key, $value[$i], $op, $bind );
 			}
-
+		}
+		else {
 			$this->_where( $key, $value, 'AND ', $op, $bind );
 		}
 
@@ -608,18 +636,38 @@ class Query {
 
 
 	/**
-	 * Provide grouping for WHERE conditions. Calling this function with `true`
-	 * as the first parameter will open a bracket, and `false` will then close
-	 * it.
+	 * Provide grouping for WHERE conditions. Use it with a callback function to
+	 * automatically group any conditions applied inside the method.
+	 * 
+	 * For legacy reasons this method also provides the ability to explicitly
+	 * define if a grouping bracket should be opened or closed in the query.
+	 * This method is not prefer.
 	 *
-	 *  @param boolean $inOut `true` to open brackets, `false` to close
+	 *  @param boolean|callable $inOut If callable it will create the group
+	 *      automatically and pass the query into the called function. For
+	 *      legacy operations use `true` to open brackets, `false` to close. 
 	 *  @param string  $op    Conditional operator to use to join to the
 	 *      preceding condition. Default `AND`.
 	 *  @return self
+	 *
+	 *  @example
+	 *     <code>
+	 *     $query->where_group( function ($q) {
+	 *       $q->where( 'location', 'Edinburgh' );
+	 *       $q->where( 'position', 'Manager' );
+	 *     } );
+	 *     </code>
 	 */
 	public function where_group ( $inOut, $op='AND' )
 	{
-		$this->_where_group( $inOut, $op );
+		if ( is_callable($inOut) ) {
+			$this->_where_group( true, $op );
+			$inOut( $this );
+			$this->_where_group( false, $op );
+		}
+		else {
+			$this->_where_group( $inOut, $op );
+		}
 
 		return $this;
 	}
@@ -773,7 +821,13 @@ class Query {
 				// Nothing (simplifies the logic!)
 			}
 			else if ( $this->_where[$i]['group'] === ')' ) {
-				// Nothing
+				// If a group has been used but no conditions were added inside
+				// of, we don't want to end up with `()` in the SQL as that is
+				// invalid, so add a 1.
+				if ( $this->_where[$i-1]['group'] === '(' ) {
+					$condition .= '1=1';
+				}
+				// else nothing
 			}
 			else if ( $this->_where[$i-1]['group'] === '(' ) {
 				// Nothing
@@ -857,9 +911,12 @@ class Query {
 		$idl = $this->_identifier_limiter;
 
 		// No escaping character
-		if ( $idl === '' ) {
+		if ( ! $idl ) {
 			return $identifier;
 		}
+
+		$left = $idl[0];
+		$right = $idl[1];
 
 		// Dealing with a function or other expression? Just return immediately
 		if (strpos($identifier, '(') !== FALSE || strpos($identifier, '*') !== FALSE || strpos($identifier, ' ') !== FALSE)
@@ -880,7 +937,7 @@ class Query {
 		}
 
 		$a = explode('.', $identifier);
-		return $idl . implode($idl.'.'.$idl, $a) . $idl . $alias;
+		return $left . implode($right.'.'.$left, $a) . $right . $alias;
 	}
 
 	/**
@@ -959,8 +1016,6 @@ class Query {
 	 */
 	protected function _where ( $where, $value=null, $type='AND ', $op="=", $bind=true )
 	{
-		$idl = $this->_identifier_limiter;
-
 		if ( $where === null ) {
 			return;
 		}

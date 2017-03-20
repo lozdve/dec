@@ -280,10 +280,11 @@ class Upload extends DataTables\Ext {
 	 * Get database information data from the table
 	 *
 	 * @param \DataTables\Database $db Database
+	 * @param number [$id=null] Limit to a specific id
 	 * @return array Database information
 	 * @internal
 	 */
-	public function data ( $db )
+	public function data ( $db, $id=null )
 	{
 		if ( ! $this->_dbTable ) {
 			return null;
@@ -299,6 +300,10 @@ class Upload extends DataTables\Ext {
 			if ( $prop !== self::DB_CONTENT ) {
 				$q->get( $column );
 			}
+		}
+
+		if ( $id !== null ) {
+			$q->where( $this->_dbPKey, $id );
 		}
 
 		$result = $q->exec()->fetchAll();

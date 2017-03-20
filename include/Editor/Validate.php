@@ -379,20 +379,26 @@ class Validate {
 	 *
 	 *  @param string $val The value to check for validity
 	 *  @param string[] $data The full data set submitted
-	 *  @param array $opts Validation options. No additional options are
-	 *    available or required for this validation method.
+	 *  @param array $opts Validation options. Additional options:
+	 *     * `decimal`: is available to indicate what character should be used
+	 *       as the decimal
 	 *  @param array $host Host information
 	 *  @return string|true true if the value is valid, a string with an error
 	 *    message otherwise.
 	 */
 	public static function numeric ( $val, $data, $opts, $host ) {
 		$cfg = Validate::_extend( $opts, null, array(
-			'message' => "This input must be given as a number"
+			'message' => "This input must be given as a number",
+			'decimal' => '.'
 		) );
 
 		$common = Validate::_common( $val, $cfg );
 		if ( $common !== null ) {
 			return $common;
+		}
+
+		if ( $cfg['decimal'] !== '.' ) {
+			$val = str_replace( $cfg['decimal'], '.', $val );
 		}
 
 		return ! is_numeric( $val ) ?
@@ -405,10 +411,13 @@ class Validate {
 	 *
 	 *  @param string $val The value to check for validity
 	 *  @param string[] $data The full data set submitted
-	 *  @param int|array $opts Validation options. The additional option of
-	 *    `min` is available for this method to indicate the minimum value. If
-	 *    only the default validation options are required, this parameter can
-	 *    be given as an integer value, which will be used as the minimum value.
+	 *  @param int|array $opts Validation options. Additional options:
+	 *     * `min`: indicate the minimum value. If only the default validation
+	 *       options are required, this parameter can be given as an integer
+	 *       value, which will be used as the minimum value.
+	 *     * `decimal`: is available to indicate what character should be used
+	 *       as the decimal
+	 *    separator (default '.').
 	 *  @param array $host Host information
 	 *  @return string|true true if the value is valid, a string with an error
 	 *    message otherwise.
@@ -425,6 +434,10 @@ class Validate {
 			'message' => "Number is too small, must be ".$min." or larger"
 		) );
 
+		if ( $cfg['decimal'] !== '.' ) {
+			$val = str_replace( $cfg['decimal'], '.', $val );
+		}
+
 		return $val < $min ?
 			$cfg['message'] :
 			true;
@@ -435,10 +448,12 @@ class Validate {
 	 *
 	 *  @param string $val The value to check for validity
 	 *  @param string[] $data The full data set submitted
-	 *  @param int|array $opts Validation options. The additional option of
-	 *    `max` is available for this method to indicate the maximum value. If
-	 *    only the default validation options are required, this parameter can
-	 *    be given as an integer value, which will be used as the maximum value.
+	 *  @param int|array $opts Validation options.
+	 *     * `max`: indicate the maximum value. If only the default validation
+	 *       options are required, this parameter can be given as an integer
+	 *       value, which will be used as the maximum value.
+	 *     * `decimal`: is available to indicate what character should be used
+	 *       as the decimal
 	 *  @param array $host Host information
 	 *  @return string|true true if the value is valid, a string with an error
 	 *    message otherwise.
@@ -455,6 +470,10 @@ class Validate {
 			'message' => "Number is too large, must be ".$max." or smaller"
 		) );
 
+		if ( $cfg['decimal'] !== '.' ) {
+			$val = str_replace( $cfg['decimal'], '.', $val );
+		}
+
 		return $val > $max ?
 			$cfg['message'] :
 			true;
@@ -467,9 +486,11 @@ class Validate {
 	 *
 	 *  @param string $val The value to check for validity
 	 *  @param string[] $data The full data set submitted
-	 *  @param int|array $opts Validation options. The additional options of
-	 *    `min` and `max` are available for this method to indicate the minimum
-	 *    and maximum values, respectively.
+	 *  @param int|array $opts Validation options. Additional options:
+	 *     * `min`: indicate the minimum value.
+	 *     * `max`: indicate the maximum value.
+	 *     * `decimal`: is available to indicate what character should be used
+	 *       as the decimal
 	 *  @param array $host Host information
 	 *  @return string|true true if the value is valid, a string with an error
 	 *    message otherwise.
@@ -853,7 +874,8 @@ class Validate {
 		// If doing an edit, then we need to also discount the current row,
 		// since it is of course already validly unique
 		if ( $host['action'] === 'edit' ) {
-			$query->where( $editor->pkey(), $host['id'], '!=' );
+			$cond = $editor->pkeyToArray( $host['id'], true );
+			$query->where( $cond, null, '!=' );
 		}
 
 		$res = $query->exec();
@@ -903,10 +925,11 @@ class Validate {
 
 		$editor = $host['editor'];
 		$field = $host['field'];
+		$options = $field->options();
 
 		$db = $cfg['db'] ? $cfg['db'] : $host['db'];
-		$table = $cfg['table'] ? $cfg['table'] : $field->optsTable();
-		$column = $cfg['field'] ? $cfg['field'] : $field->optsValue();
+		$table = $cfg['table'] ? $cfg['table'] : $options->table();
+		$column = $cfg['field'] ? $cfg['field'] : $options->value();
 
 		if ( ! $table ) {
 			throw new \Exception('Table for database value check is not defined for field '.$field->name());

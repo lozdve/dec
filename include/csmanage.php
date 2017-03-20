@@ -138,3 +138,36 @@ else if(isset($_POST['cls_id']) && isset($_POST['time_id'])) {
 		->process( $_POST )
 		->json();
 }
+else if(isset($_POST['get_inv'])) {
+	Editor::inst($db, 'invidx', 'TransID')
+		->fields(
+			Field::inst( 'invidx.InvNo'),
+			Field::inst( 'invidx.TermID'),
+			Field::inst( 'family.Code' ),
+			Field::inst( 'family.Last' ),
+			Field::inst( 'family.Physical1' ),
+			Field::inst( 'family.Physical2' ),
+			Field::inst( 'family.Physical3' ),
+			Field::inst( 'family.FamilyID' ),
+			Field::inst( 'invidx.FamID' ),
+			Field::inst( 'invidx.Type' ),
+			Field::inst( 'invidx.Posted' )
+		)
+		->leftJoin('family', 'family.FamilyID', '=', 'invidx.FamID AND invidx.Type=\'I\' AND invidx.Posted=0' )
+		->process( $_POST )
+		->json();
+}
+else if(isset($_POST['banking'])) {
+	Editor::inst($db, 'banking', 'BankID')
+		->fields(
+			Field::inst('Reference'),
+			Field::inst('Date'),
+			Field::inst('Bank'),
+			Field::inst('Branch'),
+			Field::inst('Description'),
+			Field::inst('Amount'),
+			Field::inst('BankID')
+		)
+		->process($_POST)
+		->json();
+}

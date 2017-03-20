@@ -16,6 +16,7 @@ if (!defined('DATATABLES')) exit();
 use
 	DataTables,
 	DataTables\Editor,
+	DataTables\Editor\Options,
 	DataTables\Editor\Join;
 
 
@@ -124,20 +125,11 @@ class Field extends DataTables\Ext {
 	/** @var mixed */
 	private $_getValue = null;
 
-	/** @var string|callable */
-	private $_optsTable = null;
-
-	/** @var string */
-	private $_optsValue = null;
-
-	/** @var string */
-	private $_optsLabel = null;
+	/** @var Options */
+	private $_opts = null;
 
 	/** @var callable */
-	private $_optsCond = null;
-
-	/** @var callable */
-	private $_optsFormat = null;
+	private $_optsFn = null;
 
 	/** @var string */
 	private $_name = null;
@@ -302,15 +294,46 @@ class Field extends DataTables\Ext {
 	 *     label. Not used if the first parameter is given as a closure
 	 * @param  callable        $condition Function that will add `where`
 	 *     conditions to the query
+	 * @param  callable        $format Function will render each label
+	 * @param  string          $order SQL ordering
 	 * @return Field                  Self for chaining
 	 */
-	public function options ( $table, $value=null, $label=null, $condition=null, $format=null )
+	public function options ( $table=null, $value=null, $label=null, $condition=null, $format=null, $order=null )
 	{
-		$this->_optsTable  = $table;
-		$this->_optsValue  = $value;
-		$this->_optsLabel  = $label;
-		$this->_optsCond   = $condition;
-		$this->_optsFormat = $format;
+		if ( $table === null ) {
+			return $this->_opts;
+		}
+
+		// Overloads for backwards compatibility
+		if ( is_a( $table, '\DataTables\Editor\Options' ) ) {
+			// Options class
+			$this->_optsFn = null;
+			$this->_opts = $table;
+		}
+		else if ( is_callable($table) && is_object($table) ) {
+			// Function
+			$this->_opts = null;
+			$this->_optsFn = $table;
+		}
+		else {
+			$this->_optsFn = null;
+			$this->_opts = Options::inst()
+				->table( $table )
+				->value( $value )
+				->label( $label );
+
+			if ( $condition ) {
+				$this->_opts->where( $condition );
+			}
+
+			if ( $format ) {
+				$this->_opts->render( $format );
+			}
+
+			if ( $order ) {
+				$this->_opts->order( $order );
+			}
+		}
 
 		return $this;
 	}
@@ -327,8 +350,8 @@ class Field extends DataTables\Ext {
 	 *    setter (leave as undefined to use as a getter). This can take the
 	 *    value of:
 	 *    
-	 *    * `true`              - Same as `Field::SET_NONE`
-	 *    * `false`             - Same as `Field::SET_BOTH`
+	 *    * `true`              - Same as `Field::SET_BOTH`
+	 *    * `false`             - Same as `Field::SET_NONE`
 	 *    * `Field::SET_BOTH`   - Set the database value on both create and edit commands
 	 *    * `Field::SET_NONE`   - Never set the database value
 	 *    * `Field::SET_CREATE` - Set the database value only on create
@@ -537,96 +560,15 @@ class Field extends DataTables\Ext {
 	 */
 	public function optionsExec ( $db )
 	{
-		$table = $this->_optsTable;
-
-		if ( ! $table ) {
-			return false;
+		if ( $this->_optsFn ) {
+			$fn = $this->_optsFn;
+			return $fn();
 		}
-		else if ( is_callable($table) && is_object($table) ) {
-			return $table();
+		else if ( $this->_opts ) {
+			return $this->_opts->exec( $db );
 		}
-		else {
-			$label = $this->_optsLabel;
-			$value = $this->_optsValue;
-			$formatter = $this->_optsFormat;
-			$fields = array( $value );
 
-			// Create a list of the fields that we need to get from the db
-			if ( ! is_array( $label ) ) {
-				$fields[] = $label;
-			}
-			else {
-				$fields = array_merge( $fields, $label );
-			}
-
-			// We need a default formatter if one isn't provided
-			if ( ! $formatter ) {
-				$formatter = is_array( $label ) ?
-					function ( $row ) use ( $label ) {
-						$a = array();
-
-						for ( $i=0, $ien=count($label) ; $i<$ien ; $i++ ) {
-							$a[] = $row[ $label[$i] ];
-						}
-
-						return implode(' ', $a);
-					} :
-					function ( $row ) use ( $label ) {
-						return $row[ $label ];
-					};
-			}
-
-			// Get the data
-			$rows = $db
-				->selectDistinct(
-					$table,
-					$fields,
-					$this->_optsCond
-				)
-				->fetchAll();
-
-			// Create the output array
-			$out = array();
-
-			for ( $i=0, $ien=count($rows) ; $i<$ien ; $i++ ) {
-				$out[] = array(
-					"label" => $formatter( $rows[$i] ),
-					"value" => $rows[$i][$value]
-				);
-			}
-
-			usort( $out, function ( $a, $b ) {
-				return is_numeric($a['label']) && is_numeric($b['label']) ?
-					($a['label']*1) - ($b['label']*1) :
-					strcmp( $a['label'], $b['label'] );
-			} );
-
-			return $out;
-		}
-	}
-
-
-	/**
-	 * Get the options table
-	 * @return string Options table or null
-	 * @internal
-	 */
-	public function optsTable ()
-	{
-		return is_string( $this->_optsTable ) ?
-			$this->_optsTable :
-			null;
-	}
-
-
-	/**
-	 * Get the options value column
-	 * @return string Options value or null
-	 * @internal
-	 */
-	public function optsValue ()
-	{
-		return $this->_optsValue;
+		return false;
 	}
 
 
@@ -866,96 +808,6 @@ class Field extends DataTables\Ext {
 		return isset( $inner [ $names[count($names)-1] ] ) ?
 			true :
 			false;
-	}
-
-	/**
-	 * Read a value from a data structure, using Javascript dotted object
-	 * notation. This is the inverse of the `_writeProp` method and provides
-	 * the same support, matching DataTables' ability to read nested JSON
-	 * data objects.
-	 *
-	 * @param  string $name  Javascript dotted object name to write to
-	 * @param  array  $data  Data source array to read from
-	 * @return mixed         The read value, or null if no value found.
-	 * @private
-	 */
-	private function _readProp ( $name, $data )
-	{
-		if ( strpos($name, '.') === false ) {
-			return isset( $data[ $name ] ) ?
-				$data[ $name ] :
-				null;
-		}
-
-		$names = explode( '.', $name );
-		$inner = $data;
-
-		for ( $i=0 ; $i<count($names)-1 ; $i++ ) {
-			if ( ! isset( $inner[ $names[$i] ] ) ) {
-				return null;
-			}
-
-			$inner = $inner[ $names[$i] ];
-		}
-
-		if ( isset( $names[count($names)-1] ) ) {
-			$idx = $names[count($names)-1];
-
-			return isset( $inner[ $idx ] ) ?
-				$inner[ $idx ] :
-				null;
-		}
-		return null;
-	}
-
-	/**
-	 * Write the field's value to an array structure, using Javascript dotted
-	 * object notation to indicate JSON data structure. For example `name.first`
-	 * gives the data structure: `name: { first: ... }`. This matches DataTables
-	 * own ability to do this on the client-side, although this doesn't
-	 * implement implement quite such a complex structure (no array / function
-	 * support).
-	 *
-	 * @param  array  &$out   Array to write the data to
-	 * @param  string  $name  Javascript dotted object name to write to
-	 * @param  mixed   $value Value to write
-	 * @throws \Exception Information about duplicate properties
-	 * @private
-	 */
-	private function _writeProp( &$out, $name, $value )
-	{
-		if ( strpos($name, '.') === false ) {
-			$out[ $name ] = $value;
-			return;
-		}
-
-		$names = explode( '.', $name );
-		$inner = &$out;
-		for ( $i=0 ; $i<count($names)-1 ; $i++ ) {
-			$loopName = $names[$i];
-
-			if ( ! isset( $inner[ $loopName ] ) ) {
-				$inner[ $loopName ] = array();
-			}
-			else if ( ! is_array( $inner[ $loopName ] ) ) {
-				throw new \Exception(
-					'A property with the name `'.$name.'` already exists. This '.
-					'can occur if you have properties which share a prefix - '.
-					'for example `name` and `name.first`.'
-				);
-			}
-
-			$inner = &$inner[ $loopName ];
-		}
-
-		if ( isset( $inner[ $names[count($names)-1] ] ) ) {
-			throw new \Exception(
-				'Duplicate field detected - a field with the name `'.$name.'` '.
-				'already exists.'
-			);
-		}
-
-		$inner[ $names[count($names)-1] ] = $value;
 	}
 }
 
