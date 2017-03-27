@@ -12,7 +12,8 @@ $termt = substr($inv_no, 4, 1);
 $paydefault = substr($inv_no, -1);
 $famid = substr($inv_no, 5, -1);
 $fam_detail = $database->getFamilyDetailbyID($famid);
-$invidx_no = $database->getInvidxByFamAndTerm($famid, $termid);
+$people_detail = $database->getPeopleDetailbyID($famid);
+$invidx_no = $database->getTypeIInvidxByFamAndTerm($famid, $termid);
 // var_dump($invidx_no);
 
 class PDF extends FPDF
@@ -40,6 +41,7 @@ class PDF extends FPDF
 	}
 
 	function subHeader($fam_detail, $inv_no) {
+		// var_dump($inv_no);
 		$date = new DateTime($inv_no[0]['Date']);
 		$fam_name=$fam_detail[0]['Last'];
 		$this->AddFont('OpenSans','','OpenSans.php');
@@ -186,8 +188,6 @@ class PDF extends FPDF
 					if($this->GetY() > 265) {
 						$this->Cell(0,0,'','LRB',1);
 						$this->AddPage();
-					}
-					if($this->GetY() < 11 ) {
 						$this->Cell(0,0,'','T',1);
 					}
 				}
@@ -197,15 +197,17 @@ class PDF extends FPDF
 				if($this->GetY() > 265) {
 					$this->Cell(0,0,'','B',1);
 					$this->AddPage();
-				}
-
-				if($this->GetY() < 11) {
-					$this->Cell(0,0,'','T',1);					
+					$this->Cell(0,0,'','T',1);	
 				}
 				$this->Cell(0,6,$this->Line(170,$this->GetY()+2,198,$this->GetY()+2),'LR',1,'R');
 				$this->SetFont('OpenSansB','',10);
 				$this->Cell(0,7,str_pad('$'.$owing[$i][0],15," ",STR_PAD_BOTH),'LR',1,'R');				
 
+				if($this->GetY() > 265) {
+					$this->Cell(0,0,'','B',1);
+					$this->AddPage();
+					$this->Cell(0,0,'','T',1);	
+				}
 				if($i==sizeof($owing)-1) {
 					$this->Cell(0,3,'','LR',1);
 					$this->Cell(0,7,'Total Owing: '.str_pad('$'.number_format($past_total,2,'.',','),20," ",STR_PAD_BOTH),'LR',1,'R');
@@ -216,9 +218,17 @@ class PDF extends FPDF
 		}		
 	}
 
-	function paymentStat($fam_detail, $termyear, $termt) {
+	function paymentStat($termyear, $termt, $inv_no) {
+		global $database;
 		$this->AddFont('OpenSans','','OpenSans.php');
 		$this->AddFont('OpenSansB','','OpenSans-Bold.php');
+
+		$people_detail = $database->getInvtransForInitials($inv_no);
+		// var_dump($people_detail);
+		$patclar = $people_detail[0]['Last'] .' '. $people_detail[0]['First'];
+		for($i=1;$i<sizeof($people_detail); $i++) {
+			$patclar .= ', '.substr($people_detail[$i]['First'], 0, 1);
+		}
 		
 		if($this->GetY() > 222) {
 			$this->AddPage();
@@ -230,7 +240,7 @@ class PDF extends FPDF
 			$this->MultiCell(0, 5, 'Payment is due 7 days from the date of this invoice unless prior arrangements have been made with DEC management.',0,1);
 			$this->Cell(0,8,'Internet banking number: Westpac 03-1548-0097949-000',0,1);
 			$this->Cell(0,3,'',0,1);
-			$this->Cell(0,6,'Particulars: '.$fam_detail[0]['Last'],0,1);
+			$this->Cell(0,6,'Particulars: '.$patclar,0,1);
 			$this->Cell(0,6,'Code: Matua',0,1);
 			$this->Cell(0,6,'Reference: '.$termyear. ' Term '. $termt);
 		}
@@ -243,7 +253,7 @@ class PDF extends FPDF
 			$this->MultiCell(0, 5, 'Payment is due 7 days from the date of this invoice unless prior arrangements have been made with DEC management.',0,1);
 			$this->Cell(0,8,'Internet banking number: Westpac 03-1548-0097949-000',0,1);
 			$this->Cell(0,3,'',0,1);
-			$this->Cell(0,6,'Particulars: '.$fam_detail[0]['Last'],0,1);
+			$this->Cell(0,6,'Particulars: '.$patclar,0,1);
 			$this->Cell(0,6,'Code: Matua',0,1);
 			$this->Cell(0,6,'Reference: '.$termyear. ' Term '. $termt);
 		}
@@ -256,5 +266,5 @@ $pdf->SetTitle($title);
 $pdf->subHeader($fam_detail, $invidx_no);
 $pdf->invContent($inv_no);
 $pdf->pastInv($famid,$termid);
-$pdf->paymentStat($fam_detail,$termyear,$termt);
+$pdf->paymentStat($termyear,$termt, $inv_no);
 $pdf->Output();

@@ -5,7 +5,7 @@
 
  ✔ Journal @done (17-03-09 10:58)
 
- ☐ Studio
+ ✔ Studio @done (17-03-24 10:44)
 
  ✔ Invoices PDF - posting @done (17-03-14 14:46)
 
@@ -17,3 +17,20 @@
  ✔ changing date of pdf @done (17-03-16 11:49)
 
  ✔ Saved invoices add new student @done (17-03-16 15:41)
+
+ 24/03:
+
+ ✔ remove parents from saved invoices @done (17-03-24 09:41)
+ ✔ update invoice dates @done (17-03-24 09:45)
+ ✔ invoices put student name ( Last First, Initials,,,) @done (17-03-24 11:09)
+ ✔ receive payment no credit card direct card @done (17-03-24 09:45)
+
+   Class{RADADV2, RADINT, PSMM, CS, STS, BOYS, POINTE, ADULT, PRIVATE, MTS, MTJ, OPEN, CJ, EXT, PRIVATEG, BIT, STJ, SB, CO, SS, GJ, GS, MTI, ADJ}
+
+
+27/03:
+  ✔ 1. reference filed longer @done (17-03-27 13:55) [phpmyadmin]
+  ✔ 2. Add home in database(people), edit edit_family.php, edittable.php @done (17-03-28 09:33)
+  ✔ 3. Download keytables, include in header, edit in edit_class.php @done (17-03-27 14:31)
+  ✔ 4. Edit csmanage.php @done (17-03-27 14:40)
+  ✔ 5. Edit edit_class.php @done (17-03-27 14:46)

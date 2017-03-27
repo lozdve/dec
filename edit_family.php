@@ -145,11 +145,10 @@ if(!$session->logged_in){
                                                     <tr>
                                                         <th></th>
                                                         <th>First</th>
-                                                        <th>Middle</th>
                                                         <th>Last</th>
                                                         <th>Mobile</th>
-                                                        <th>Medical</th>
-                                                        <th>DOB</th>
+                                                        <th>Work Ph.</th>
+                                                        <th>Home</th>
                                                     </tr>
                                                 </thead>
                                             </table>
@@ -283,21 +282,17 @@ if(!$session->logged_in){
                 label: "First:",
                 name: "First"
             }, {
-                label: "Middle:",
-                name: "Middle"
-            }, {
                 label: "Last:",
                 name: "Last"
             }, {
                 label: "Mobile #:",
                 name: "Mobile"
             }, {
-                label: "Medical:",
-                name: "Medical"
+                label: "Work Phone:",
+                name: "Work"
             }, {
-                label: "DOB:",
-                type: "date",
-                name: "DOB"
+                label: "Home:",
+                name: "home"
             }, {
                 type: "hidden",
                 name: "FamilyID",
@@ -384,17 +379,10 @@ if(!$session->logged_in){
                 width: "5%" 
             },
             { data: "First", width: "15%" },
-            { data: "Middle", width: "15%" },
             { data: "Last", width: "15%" },
             { data: "Mobile", width: "20%" },
-            { data: "Medical", width: "15%" },
-            { data: "DOB", width: "15%", render: function (data,type,row) {
-                                                if(data != null)
-                                                    return moment(data).format( 'DD/MM/YYYY' );
-                                                else
-                                                    return null;
-                                            }
-            }
+            { data: "Work", width: "15%" },
+            { data: "home", width: "15%" }
         ],
         select: {
                 style:    'os',

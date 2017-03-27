@@ -45,10 +45,12 @@ else if (isset($_POST['boo_stu']) && $_POST['boo_stu'] == '0') {
 		Field::inst( 'Middle' ),
 		Field::inst( 'Last' ),
 		Field::inst( 'Mobile' ),
+		Field::inst( 'Work' ),
 		Field::inst( 'Medical' ),
 		Field::inst( 'DOB' ),
 		Field::inst( 'FamilyID' ),
-		Field::inst( 'Student' )
+		Field::inst( 'Student' ),
+		Field::inst( 'home' )
 	)
 	->where('Student', 0)
 	->where('FamilyID', $_POST['famID'])
@@ -127,6 +129,7 @@ else if (isset($_POST['inv_no']) && isset($_POST['termid'])) {
 					->label(array('First', 'Last'))
 					->where(function($q) {
 						$q->where('FamilyID', $_POST['famid'], '=');
+						$q->where('Student', 1, '=');
 					}))
 		)
 		->leftJoin('people', 'people.PersonID', '=', 'invtrans.StudentID AND invtrans.InvNo=\'' .$_POST['inv_no']. '\'')

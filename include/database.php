@@ -633,7 +633,9 @@ class MySQLDB {
     }
 
     function getTermByClass($cls_id) {
-        $query = "SELECT Year, Term, Day, Time, TimeID, times.TermID, Studio FROM " . TBL_TERMS . ", " . TBL_TIMES . ", " .TBL_STUDIO . " WHERE times.ClassID= '$cls_id' AND times.TermID = terms.TermID GROUP BY times.TimeID ORDER BY terms.Year DESC, terms.Term DESC";
+        // $tmp = 'terms.TermID';
+        // $query = "SELECT Year, Term, Day, Time, TimeID, times.TermID, Studio FROM " . TBL_TERMS . ", " . TBL_TIMES . ", " .TBL_STUDIO . " WHERE times.ClassID= '$cls_id' AND times.TermID = terms.TermID GROUP BY times.TimeID ORDER BY terms.Year DESC, terms.Term DESC";
+        $query = "SELECT Year, Term, Day, Time, TimeID, times.TermID, Studio FROM " .TBL_TIMES. " INNER JOIN " .TBL_TERMS. " ON times.ClassID= ".$cls_id." AND times.TermID = terms.TermID INNER JOIN " .TBL_STUDIO. " ON studio.StudioID = times.StudioID GROUP BY times.TimeID";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();
@@ -656,6 +658,14 @@ class MySQLDB {
         return $result;
     }
 
+    function getTypeIInvidxByFamAndTerm($fam_id,$term_id) {
+        $query = "SELECT * FROM " . TBL_INVIDX . " WHERE FamID='$fam_id' AND TermID='$term_id' AND Type='I' ORDER BY TermID DESC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
     function getInvidxByInvNo($invno) {
         $query = "SELECT * FROM " . TBL_INVIDX . " WHERE InvNo = '".$invno."'";
         $stmt = $this->connection->prepare($query);
@@ -666,6 +676,14 @@ class MySQLDB {
 
     function getInvtransByNo($inv_no) {
         $query = "SELECT * FROM " .TBL_INVTRANS. " INNER JOIN " .TBL_PEOPLE. " ON people.PersonID=invtrans.StudentID AND invtrans.InvNo='" .$inv_no. "' GROUP BY invtrans.IndDetID ORDER BY StudentID ASC";
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $result;
+    }
+
+    function getInvtransForInitials($inv_no) {
+        $query = "SELECT InvNo, PersonID, First, Last FROM " .TBL_INVTRANS. " INNER JOIN " .TBL_PEOPLE. " ON people.PersonID=invtrans.StudentID AND invtrans.InvNo='" .$inv_no. "' GROUP BY StudentID ORDER BY StudentID ASC";
         $stmt = $this->connection->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll();

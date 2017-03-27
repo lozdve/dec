@@ -53,4 +53,5 @@
 <script type="text/javascript" language="javascript" src="https://cdn.datatables.net/select/1.2.0/js/dataTables.select.min.js">
 </script>
 <script type="text/javascript" src="js/selectize.min.js"></script>
+<script type="text/javascript" src="js/dataTables.keyTable.min.js"></script>
 </head>

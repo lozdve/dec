@@ -101,8 +101,6 @@ if(!$session->logged_in){
                                         <span class="field"><select name="report-method" class="input-large">
                                             <option value="1">Cash</option>
                                             <option value="2">Cheque</option>
-                                            <option value="3">Credit Card</option>
-                                            <option value="4">Direct Credit</option>
                                         </select></span>
                                     </p>
 

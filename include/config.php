@@ -14,7 +14,7 @@ $sql_details = array(
 	"pass" => "",       // Database password
 	"host" => "localhost",       // Database host
 	"port" => "",       // Database connection port (can be left empty for default)
-	"db"   => "new_dec",       // Database name
+	"db"   => "new_dec_1",       // Database name
 	"dsn"  => "charset=utf8"        // PHP DSN extra information. Set as `charset=utf8` if you are using MySQL
 );
 

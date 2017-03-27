@@ -14,6 +14,7 @@ use
 	DataTables\Editor\Format,
 	DataTables\Editor\Mjoin,
 	DataTables\Editor\Upload,
+	DataTables\Editor\Options,
 	DataTables\Editor\Validate;
 
 if(isset($_POST['family'])) {
@@ -121,7 +122,13 @@ else if(isset($_POST['cls_id']) && isset($_POST['time_id'])) {
 			Field::inst( 'attendance.Exam' ),
 			Field::inst( 'attendance.Grade' ),
 			Field::inst( 'attendance.StudentID' )
-				->options('people','PersonID', array('First', 'Last')),
+				->options( Options::inst()
+					->table('people')
+					->value('PersonID')
+					->label(array('First', 'Last'))
+					->where(function($q) {
+						$q->where('Student', 1, '=');
+					})),
 			Field::inst( 'people.First' ),
 			Field::inst( 'people.Last' ),
 			Field::inst( 'attendance.TimeID' ),

@@ -55,6 +55,52 @@ if(!$session->logged_in){
                 <div class="row-fluid">
                     <div id="dashboard-left" class="span12">
                         <div class="widget">
+                            <h4 class="widgettitle">Attendance</h4>
+                            <div class="widgetcontent">
+                                <form id="editfam" data-class-id='<?php echo $class_id; ?>'>
+                                    <div class="col-full editfam-div">
+                                        <div class="col-term-select">TERM:
+                                            <select class="attendselect">
+                                                <?php 
+                                                    $cls_term = $database->getTermByClass($class_id);
+                                                    // var_dump($cls_term);
+                                                    // die();
+                                                    for($i=0;$i<sizeof($cls_term);$i++) {
+                                                        echo "<option data-term-id=\"".$cls_term[$i][5]."\" data-studio=\"".$cls_term[$i][6]."\" value=\"".$cls_term[$i][4]."\"" .(($cls_term[$i]['TermID']==$curr_term)?'selected=true':''). ">".$cls_term[$i][0]. " Term " .$cls_term[$i][1]. " on " .$cls_term[$i][2]. " " .$cls_term[$i][3]. "</option>";           
+                                                    }
+                                                ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-term-studio"></div>
+                                    </div>
+                                    <div id="classattend" class="">
+                                        <table id="dyntable-classattend" class="display">
+                                            <thead>
+                                                <tr>
+                                                    <th></th>
+                                                    <th>Student</th>
+                                                    <th>1</th>
+                                                    <th>2</th>
+                                                    <th>3</th>
+                                                    <th>4</th>
+                                                    <th>5</th>
+                                                    <th>6</th>
+                                                    <th>7</th>
+                                                    <th>8</th>
+                                                    <th>9</th>
+                                                    <th>10</th>
+                                                    <th>11</th>
+                                                    <th>Exam</th>
+                                                    <th>Grade</th>
+                                                    <th>Pay Amount</th>
+                                                    <th>Payment Default</th>
+                                                </tr>
+                                            </thead>
+                                        </table>
+                                    </div>
+                                </form>
+                            </div>
+
                             <h4 class="widgettitle"><?php echo $class_info[0]['Class'] ?></h4>
                             <div class="widgetcontent">
                                 <form id="editfam" data-class-id='<?php echo $class_id; ?>'>
@@ -128,77 +174,33 @@ if(!$session->logged_in){
                                             </select>
                                         </label>
                                     </div>
-
-                                    <ul class="nav nav-pills">
-                                        <li class="active"><a data-toggle="pill" href="#classtimes">Class Times</a></li>
-                                    </ul>
-
-                                    <div class="tab-content">
-                                        <div id="classtimes" class="tab-pane fade in active">
-                                            <table id="dyntable-clstimes" class="display">
-                                                <thead>
-                                                    <tr>
-                                                        <th></th>
-                                                        <th>Term</th>
-                                                        <th>Studio</th>
-                                                        <th>Day</th>
-                                                        <th>Time</th>
-                                                    </tr>
-                                                </thead>
-                                            </table>
-                                        </div>
-                                    </div>
                                 </form>
                                 <!-- tree table for job display -->
                             </div><!--widgetcontent-->
 
-                        <div class="widget">
-                            <h4 class="widgettitle">Attendance</h4>
+                            <h4 class="widgettitle">Class Times</h4>
                             <div class="widgetcontent">
-                                <form id="editfam" data-class-id='<?php echo $class_id; ?>'>
-                                    <div class="col-full editfam-div">
-                                        <div class="col-term-select">TERM:
-                                            <select class="attendselect">
-                                                <?php 
-                                                    $cls_term = $database->getTermByClass($class_id);
-                                                    // var_dump($cls_term);
-                                                    // die();
-                                                    for($i=0;$i<sizeof($cls_term);$i++) {
-                                                        echo "<option data-term-id=\"".$cls_term[$i][5]."\" data-studio=\"".$cls_term[$i][6]."\" value=\"".$cls_term[$i][4]."\"" .(($cls_term[$i]['TermID']==$curr_term)?'selected=true':''). ">".$cls_term[$i][0]. " Term " .$cls_term[$i][1]. " on " .$cls_term[$i][2]. " " .$cls_term[$i][3]. "</option>";           
-                                                    }
-                                                ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-term-studio"></div>
-                                    </div>
-                                    <div id="classattend" class="">
-                                        <table id="dyntable-classattend" class="display">
+                                <ul class="nav nav-pills">
+                                    <li class="active"><a data-toggle="pill" href="#classtimes">Class Times</a></li>
+                                </ul>
+
+                                <div class="tab-content">
+                                    <div id="classtimes" class="tab-pane fade in active">
+                                        <table id="dyntable-clstimes" class="display">
                                             <thead>
                                                 <tr>
                                                     <th></th>
-                                                    <th>Student</th>
-                                                    <th>1</th>
-                                                    <th>2</th>
-                                                    <th>3</th>
-                                                    <th>4</th>
-                                                    <th>5</th>
-                                                    <th>6</th>
-                                                    <th>7</th>
-                                                    <th>8</th>
-                                                    <th>9</th>
-                                                    <th>10</th>
-                                                    <th>11</th>
-                                                    <th>Exam</th>
-                                                    <th>Grade</th>
-                                                    <th>Pay Amount</th>
-                                                    <th>Payment Default</th>
+                                                    <th>Term</th>
+                                                    <th>Studio</th>
+                                                    <th>Day</th>
+                                                    <th>Time</th>
                                                 </tr>
                                             </thead>
                                         </table>
                                     </div>
-                                </form>
+                                </div>
                             </div>
-                        </div>
+
                         </div><!--dashboard-left-->
                     </div><!--row-fluid-->
                 
@@ -449,7 +451,12 @@ if(!$session->logged_in){
                     type: 'hidden',
                     def: <?php echo $class_id; ?>
                 }
-            ]
+            ],
+            formOptions: {
+                inline: {
+                    onBlur: 'submit'
+                }
+            }
         });
 
         attend_editor.dependent('attendance.PayDefault', function(val) {
@@ -509,8 +516,16 @@ if(!$session->logged_in){
             buttons: [
             { extend: "create", editor: attend_create_editor },
             { extend: "remove", editor: attend_editor }
-        ]
+            ],
+            keys: {
+                columns: ':not(:first-child)',
+                keys: [ 9 ]
+            }
         } );
+
+        attend_table.on('key-focus', function( e, datatable,cell) {
+            attend_editor.inline(cell.index() );
+        });
 
         $('#dyntable-classattend').on( 'click', 'tbody td:not(:first-child)', function (e) {
             attend_editor.inline( this, {
